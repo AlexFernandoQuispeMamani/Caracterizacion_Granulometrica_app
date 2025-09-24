@@ -103,7 +103,7 @@ def aplicar_estilo_granulometrico(ax):
 def size_label_from_malla(malla_number):
     """Return readable label for a malla key (which may be non-integer)."""
     return f"{malla_number}# ({TYLER.get(malla_number,'?')} µm)"
-
+    
 def ensure_session():
     if 'page' not in st.session_state:
         st.session_state.page = 1
@@ -230,7 +230,11 @@ def page_2():
                 pass
             st.session_state.page = 3
             st.rerun()
-            
+
+if st.button("ANTERIOR"):
+    st.session_state.page = 1
+    st.rerun()
+    
 # ---------- Helper: compute granulometric analysis ----------
 def compute_analysis(df_in, mode, total_weight):
     """
@@ -411,7 +415,11 @@ def page_3():
     if st.button("SIGUIENTE"):
         st.session_state.page = 4
         st.rerun()
-
+    
+    if st.button("ANTERIOR"):
+        st.session_state.page = 2
+        st.rerun()
+        
 # ---------- PÁGINA 4: Análisis de datos ----------
 def page_4():
     st.title("ANÁLISIS DE DATOS")
@@ -568,6 +576,10 @@ variance, std, kurtosis, rango]
         st.session_state.page = 5
         st.rerun()
 
+    if st.button("ANTERIOR"):
+        st.session_state.page = 3
+        st.rerun()
+
 # ---------- PÁGINA 5: Selección del modelo ----------
 def page_5():
     st.title("SELECCIÓN DEL MODELO")
@@ -671,6 +683,10 @@ double_weibull(d_fit, alpha, k1, k2, d80))**2)
         st.session_state.page = 6
         st.rerun()
 
+    if st.button("ANTERIOR"):
+        st.session_state.page = 4
+        st.rerun()
+        
 # ---------- PÁGINA 6: Exportación ----------
 def page_6():
     st.title("EXPORTACIÓN DE DATOS")
@@ -731,6 +747,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
