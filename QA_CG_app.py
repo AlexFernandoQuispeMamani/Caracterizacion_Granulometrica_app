@@ -149,19 +149,10 @@ def compute_analysis(df_in, mode):
         # append last negative interval -last
         if len(raw) > 0:
             last = str(raw[-1]).strip()
-            intervalos.append(f"-{last}")
-        # the number of interval labels should match len(df)-1 (excluding extra_row) -> align by filling or trimming
-        # create a column of intervals for data rows (exclude the total row)
-        n_data_rows = len(df) - 1  # exclude total
-        # If generated more/less, repeat last or truncate
-        if len(intervalos) < n_data_rows:
-            # pad with last label
-            intervalos = intervalos + [intervalos[-1]]*(n_data_rows - len(intervalos))
-        else:
-            intervalos = intervalos[:n_data_rows]
-        # attach interval column for data rows
-        df.loc[:n_data_rows-1, 'Nº de malla (intervalo)'] = intervalos
+            intervalos.append(f"-{last}")  # última fila se muestra como -NºMalla
+        df['Nº de malla (intervalo)'] = intervalos
         total_row['Nº de malla (intervalo)'] = 'Total'
+
         cols_order = ['Nº de malla (intervalo)', 'Tamaño superior (µm)', 'Tamaño inferior (µm)',
                       'Tamaño promedio (µm)', 'Peso (g)', '%Peso', '%F(d)', '%R(d)']
     else:
@@ -559,9 +550,12 @@ def page_4():
                 except Exception as e:
                     st.error("No se puede interpolar: " + str(e))
 
-        st.markdown("**Tabla de tamaños nominales grabados**")
+        st.markdown("**Tabla de tamaños nominales grabados (editable)**")
         if not st.session_state.nominal_sizes.empty:
-            st.dataframe(st.session_state.nominal_sizes.style.format({'%F(d)':'{:.3f}','Tamaño (µm)':'{:.3f}'}))
+            st.session_state.nominal_sizes = st.data_editor(
+                st.session_state.nominal_sizes,
+                num_rows="dynamic"
+            )
         else:
             st.write("_Aún no hay tamaños grabados._")
 
@@ -790,7 +784,7 @@ def page_5():
     with col1:
         if st.button("ANTERIOR"):
             st.session_state.page = 4
-            st.experimental_rerun()
+            st.rerun()  
     with col2:
         if st.button("SIGUIENTE"):
             st.session_state.page = 6
@@ -864,6 +858,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
