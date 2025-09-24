@@ -174,7 +174,6 @@ def page_2():
             # Ensure Peso column exists
             if 'Peso (g)' not in df.columns and 'Peso (g)' in df.columns:
                 pass
-            st.session_state.peso_total = float(st.session_state.get('peso_total', total_weight))
             st.session_state.page = 3
             st.rerun()
 
@@ -704,5 +703,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
