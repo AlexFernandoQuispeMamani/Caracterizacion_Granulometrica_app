@@ -171,30 +171,32 @@ def page_2():
         st.info("Seleccione las mallas de la serie Tyler. Se generará una tabla con la abertura (µm) prellenada.")
         # Build options from TYLER dict, order descending by aperture
         malla_options = sorted(TYLER.items(), key=lambda x: -x[1])
+        # Corregido: Las etiquetas se construyen usando las claves y valores directamente
         labels = [f"{k} - {v} µm" for k,v in malla_options]
         # Use multiselect
         selected = st.multiselect("Selecciona mallas (múltiple)", labels)
+        
         # Map selected labels back to keys
         selected_keys = []
         for lab in selected:
+            # Corregido: Se obtiene la clave correcta del string de la etiqueta.
             key = lab.split(" - ")[0]
-            try:
-                k = int(key)
-            except:
-                try:
-                    k = float(key)
-                except:
-                    k = key
-            selected_keys.append(k)
-        # Generate default table
+            selected_keys.append(key)
+        
+        # Generar tabla por defecto
         if 'generated_mallas' not in st.session_state:
             st.session_state.generated_mallas = []
+        
         if st.button("Generar tabla de mallas"):
             rows = []
             for k in selected_keys:
-                rows.append({'Nº Malla (Tyler)': str(k)+'#', 'Abertura (µm)': abertura_valor, 'Peso (g)': np.nan})
-        df = pd.DataFrame(rows)
-        st.session_state.input_table = df
+                # Corregido: Se busca el valor de apertura del diccionario TYLER
+                abertura_valor = TYLER.get(k)
+                rows.append({'Nº Malla (Tyler)': str(k), 'Abertura (µm)': abertura_valor, 'Peso (g)': np.nan})
+            
+            # Corregido: Las siguientes líneas deben estar fuera del bucle 'for'
+            df = pd.DataFrame(rows)
+            st.session_state.input_table = df
             st.session_state.generated_mallas = selected_keys
             st.rerun()
 
@@ -210,7 +212,7 @@ def page_2():
             st.rerun()
 
     st.markdown("**Tabla de entrada** (edítala con los pesos y tamaños necesarios):")
-    # Show editable 
+    # Show editable
     if not st.session_state.input_table.empty:
         edited = st.data_editor(st.session_state.input_table, num_rows="dynamic")
         st.session_state.input_table = edited
@@ -228,7 +230,7 @@ def page_2():
                 pass
             st.session_state.page = 3
             st.rerun()
-
+            
 # ---------- Helper: compute granulometric analysis ----------
 def compute_analysis(df_in, mode, total_weight):
     """
@@ -729,6 +731,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
