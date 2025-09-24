@@ -190,12 +190,7 @@ def page_2():
 
 def compute_analysis(df_in, mode, total_weight):
     df = df_in.copy()
-    try:
-        total_weight = float(total_weight)
-        if total_weight <= 0:
-            total_weight = float(st.session_state.get('peso_total', 1000.0))
-    except:
-        total_weight = float(st.session_state.get('peso_total', 1000.0))
+    total_weight = float(st.session_state.get('peso_total', total_weight))
 
     if 'Abertura (µm)' in df.columns:
         df.rename(columns={'Abertura (µm)': 'Tamaño inferior (µm)',
@@ -757,6 +752,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
