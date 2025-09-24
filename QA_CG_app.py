@@ -33,11 +33,10 @@ st.set_page_config(page_title="CARACTERIZACIÓN GRANULOMÉTRICA", layout="wide")
 # ---------- Datos fijos: Serie Tyler (malla -> apertura µm) ----------
 TYLER_SERIES = {
     "1.05\"": None,  # placeholder header-like
-   
- 26: 500,
+    26: 500,
     22: 400,
     19: 300,  # 000 in prompt likely typos;
- set reasonable mapping where missing
+    #set reasonable mapping where missing
     16: 16000, # (some entries in prompt had odd formatting; we'll use canonical ones)
 }
 
@@ -805,6 +804,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
