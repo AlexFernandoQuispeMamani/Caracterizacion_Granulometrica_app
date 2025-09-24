@@ -231,7 +231,7 @@ def page_2():
             st.session_state.page = 3
             st.rerun()
 
-if st.button("ANTERIOR"):
+if st.button("ANTERIOR", key="btn_anterior_p2"):
     st.session_state.page = 1
     st.rerun()
     
@@ -412,12 +412,16 @@ def page_3():
     ax.set_title(grafico)
     st.pyplot(fig)
 
-    if st.button("SIGUIENTE"):
-        st.session_state.page = 4
-        st.rerun()
-    
-    if st.button("ANTERIOR"):
+col1, col2 = st.columns(2)
+
+with col1:
+    if st.button("ANTERIOR", key="btn_anterior_p3"):
         st.session_state.page = 2
+        st.rerun()
+
+with col2:
+    if st.button("SIGUIENTE", key="btn_siguiente_p3"):
+        st.session_state.page = 4
         st.rerun()
         
 # ---------- PÁGINA 4: Análisis de datos ----------
@@ -572,12 +576,11 @@ variance, std, kurtosis, rango]
         except Exception as e:
             st.error("No se pueden calcular Folk & Ward: " + str(e))
 
-    if st.button("SIGUIENTE"):
-        st.session_state.page = 5
-        st.rerun()
-
-    if st.button("ANTERIOR"):
+    if st.button("ANTERIOR", key="btn_anterior_p4"):
         st.session_state.page = 3
+        st.rerun()
+    if st.button("SIGUIENTE", key="btn_siguiente_p4"):
+        st.session_state.page = 5
         st.rerun()
 
 # ---------- PÁGINA 5: Selección del modelo ----------
@@ -679,12 +682,11 @@ double_weibull(d_fit, alpha, k1, k2, d80))**2)
             ax.grid(True)
             st.pyplot(fig)
 
-    if st.button("SIGUIENTE"):
-        st.session_state.page = 6
-        st.rerun()
-
-    if st.button("ANTERIOR"):
+    if st.button("ANTERIOR", key="btn_anterior_p5"):
         st.session_state.page = 4
+        st.rerun()
+    if st.button("SIGUIENTE", key="btn_siguiente_p5"):
+        st.session_state.page = 6
         st.rerun()
         
 # ---------- PÁGINA 6: Exportación ----------
@@ -747,6 +749,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
