@@ -28,31 +28,6 @@ import openpyxl
 
 st.set_page_config(page_title="CARACTERIZACIÓN GRANULOMÉTRICA", layout="wide")
 
-# ----- Agrega esta función de estilo -----
-def aplicar_estilo_grafico(fig, ax):
-    """Aplica un estilo consistente a los gráficos de matplotlib."""
-    # Estilo de fondo y borde
-    fig.patch.set_facecolor('#F8F8F8') # Color de fondo de la figura completa
-    ax.set_facecolor('#EFEFEF') # Color de fondo del área del gráfico
-    ax.spines['top'].set_visible(True)
-    ax.spines['right'].set_visible(True)
-    ax.spines['bottom'].set_visible(True)
-    ax.spines['left'].set_visible(True)
-    ax.spines['top'].set_color('#BBBBBB')
-    ax.spines['right'].set_color('#BBBBBB')
-    ax.spines['bottom'].set_color('#BBBBBB')
-    ax.spines['left'].set_color('#BBBBBB')
-    
-    # Grilla
-    ax.grid(True, which='both', ls='-', color='#CCCCCC', alpha=0.5)
-
-    # Limites y ticks del eje Y: de 10 en 10, de 0 a 100
-    ax.set_ylim(0, 100)
-    ax.yaxis.set_major_locator(MultipleLocator(10))
-
-    # Ticks y etiquetas
-    ax.tick_params(axis='both', which='major', labelsize=10, color='black')
-    
 # ---------- Datos fijos: Serie Tyler (malla -> apertura µm) ----------
 TYLER_SERIES = {
     "1.05\"": None,  # placeholder header-like
@@ -286,12 +261,48 @@ def compute_analysis(df_in, mode, total_weight):
 # ---------- PÁGINA 3: Análisis granulométrico (Resultados) ----------
 def page_3():
     st.title("ANÁLISIS GRANULOMÉTRICO")
-    # ... (código existente)
+    df_in = st.session_state.input_table.copy()
+    total_weight = st.session_state.get('peso_total', 0.0)
+
+    if df_in.empty:
+        st.error("No hay datos de entrada. Regresa y genera la tabla de datos.")
+        if st.button("Regresar"):
+            st.session_state.page = 2
+            st.rerun()
+        return
+
+    # Evitar que se recalculen los resultados cada vez que cambias gráfico
+    if st.session_state.results_table.empty:
+        results = compute_analysis(df_in, st.session_state.selected_mode, total_weight)
+        st.session_state.results_table = results
+    else:
+        results = st.session_state.results_table
+
+    st.markdown("**Tabla de resultados**")
+    st.dataframe(
+        results.style.format({
+            "Peso (g)": "{:.3f}",
+            "%Peso": "{:.3f}",
+            "%F(d)": "{:.3f}",
+            "%R(d)": "{:.3f}"
+        }),
+        height=300
+    )
 
     # Gráficos
     st.markdown("**Seleccione gráfico**")
-    grafico = st.selectbox(...)
-    escala = st.selectbox(...)
+    grafico = st.selectbox("SELECCIONE GRÁFICO", [
+        "Histograma de frecuencia",
+        "Diagrama de simple distribución",
+        "Diagrama Acumulativo de Subtamaño",
+        "Diagrama Acumulativo de Sobretamaño",
+        "Diagrama Acumulativo (Combinación)",
+        "Curvas granulométricas (Combinación 2,3,4)"
+    ])
+    escala = st.selectbox(
+        "Escala",
+        ["Escala decimal", "Escala semilogarítmica (X log)", "Escala logarítmica (ambos log)"]
+    )
 
     # Datos para gráficos
     plot_df = results.copy()
@@ -301,36 +312,32 @@ def page_3():
     yr = plot_df['%R(d)']
 
     fig, ax = plt.subplots(figsize=(8, 4))
-    # ----- Llama a la nueva función aquí -----
-    aplicar_estilo_grafico(fig, ax)
-
-    # Modifica los parámetros de los gráficos
     if grafico == "Histograma de frecuencia":
-        ax.bar(x, y_pct, width=np.nanmax(x) / len(x) if len(x) > 0 else 1, color='#004488')
+        ax.bar(x, y_pct, width=np.nanmax(x) / len(x) if len(x) > 0 else 1)
         ax.set_xlabel("Tamaño (µm)")
         ax.set_ylabel("%Peso")
     elif grafico == "Diagrama de simple distribución":
-        ax.plot(x, y_pct, marker='o', ls='-', mfc='white', mec='#004488', color='#004488', lw=2, ms=8)
+        ax.plot(x, y_pct, marker='o')
         ax.set_xlabel("Tamaño (µm)")
         ax.set_ylabel("%Peso")
     elif grafico == "Diagrama Acumulativo de Subtamaño":
-        ax.plot(x, yf, marker='o', ls='-', mfc='white', mec='#004488', color='#004488', lw=2, ms=8)
+        ax.plot(x, yf, marker='o')
         ax.set_xlabel("Tamaño (µm)")
         ax.set_ylabel("%F(d)")
     elif grafico == "Diagrama Acumulativo de Sobretamaño":
-        ax.plot(x, yr, marker='x', ls='-', color='#004488', lw=2, ms=8)
+        ax.plot(x, yr, marker='o')
         ax.set_xlabel("Tamaño (µm)")
         ax.set_ylabel("%R(d)")
     elif grafico == "Diagrama Acumulativo (Combinación)":
-        ax.plot(x, yf, label='%F(d)', marker='o', ls='-', mfc='white', mec='#004488', color='#004488', lw=2, ms=8)
-        ax.plot(x, yr, label='%R(d)', marker='x', ls='-', color='#004488', lw=2, ms=8)
+        ax.plot(x, yf, label='%F(d)', marker='o')
+        ax.plot(x, yr, label='%R(d)', marker='x')
         ax.set_xlabel("Tamaño (µm)")
         ax.set_ylabel("Porcentaje")
         ax.legend()
     else:  # Curvas granulométricas (2,3,4)
-        ax.plot(x, y_pct, label='%Peso', marker='s', ls='-', mfc='white', mec='#004488', color='#004488', lw=2, ms=8)
-        ax.plot(x, yf, label='%F(d)', marker='o', ls='-', mfc='white', mec='#004488', color='#004488', lw=2, ms=8)
-        ax.plot(x, yr, label='%R(d)', marker='x', ls='-', color='#004488', lw=2, ms=8)
+        ax.plot(x, y_pct, label='%Peso', marker='s')
+        ax.plot(x, yf, label='%F(d)', marker='o')
+        ax.plot(x, yr, label='%R(d)', marker='x')
         ax.set_xlabel("Tamaño (µm)")
         ax.set_ylabel("Porcentaje")
         ax.legend()
@@ -385,7 +392,7 @@ def page_4():
 
     st.markdown("**Interpretación**: La varianza indica la dispersión de tamaños; un valor mayor significa mayor dispersión. El rango (máximo - mínimo) muestra la amplitud de tamaños presentes en la muestra.")
 
-# ---------- Sección 2: REGISTRO DE TAMAÑOS Y PORCENTAJES ----------
+    # ---------- Sección 2: REGISTRO DE TAMAÑOS Y PORCENTAJES ----------
     st.header("REGISTRO DE TAMAÑOS Y PORCENTAJES")
     cols = st.columns(2)
     with cols[0]:
@@ -393,23 +400,15 @@ def page_4():
         st.markdown("El perfil granulométrico muestra la curva acumulativa de subtamaño (%F(d)).")
         # Force decimal scale plot
         fig, ax = plt.subplots(figsize=(5,4))
-        
-        # Llama a la función de estilo aquí
-        aplicar_estilo_grafico(fig, ax)
-
         x = results['Tamaño promedio (µm)'].replace(0, np.nan).dropna()
         y = results['%F(d)'].loc[x.index]
-        
-        # Aplica los estilos de línea y marcador
-        ax.plot(x, y, marker='o', ls='-', mfc='white', mec='#004488', color='#004488', lw=2, ms=8)
-        
+        ax.plot(x, y, marker='o')
         ax.set_xlabel("Tamaño (µm)")
         ax.set_ylabel("%F(d)")
         ax.set_xscale('linear')
         ax.set_yscale('linear')
         ax.grid(True)
         st.pyplot(fig)
-        
         # compute d80 by interpolation/extrapolation
         try:
             # Use interpolation on sorted x ascending
@@ -428,8 +427,8 @@ def page_4():
                     inv = interp1d(ys_s, xs_s, fill_value="extrapolate")
                     d80 = float(inv(80.0))
                     st.markdown(f"**d80 = {d80:.3f} µm**")
-                    
-                    # Se ha eliminado la línea para dibujar la flecha (ax.annotate)
+                    # draw arrow and annotate
+                    ax.annotate("", xy=(d80,80), xytext=(d80,0), arrowprops=dict(arrowstyle="->", lw=1.5))
                 else:
                     # extrapolate
                     inv = interp1d(ys_s, xs_s, fill_value="extrapolate")
@@ -728,7 +727,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
 
 
