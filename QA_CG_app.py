@@ -161,7 +161,7 @@ def page_2():
     st.markdown("**Tabla de entrada** (edítala con los pesos y tamaños necesarios):")
     # Show editable table
     if not st.session_state.input_table.empty:
-        edited = st.experimental_data_editor(st.session_state.input_table, num_rows="dynamic")
+        edited = st.data_editor(st.session_state.input_table, num_rows="dynamic")
         st.session_state.input_table = edited
 
     st.markdown("**Recomendación:** seleccionar MALLAS si trabajas con tamices; insertar manualmente si no se usan mallas estandarizadas.")
@@ -704,4 +704,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
