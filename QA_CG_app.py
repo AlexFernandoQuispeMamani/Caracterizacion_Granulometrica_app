@@ -362,10 +362,16 @@ def page_3():
     ax.grid(True, which='both', ls='--', alpha=0.5)
     ax.set_title(grafico)
     st.pyplot(fig)
-
-    if st.button("SIGUIENTE"):
-        st.session_state.page = 4
-        st.rerun()
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("ANTERIOR"):
+            st.session_state.page = 2
+            st.rerun()
+    with col2:
+        if st.button("SIGUIENTE"):
+            st.session_state.page = 4
+            st.rerun()
 
 # ---------- PÁGINA 4: Análisis de datos ----------
 def page_4():
@@ -537,9 +543,15 @@ def page_4():
         except Exception as e:
             st.error("No se pueden calcular Folk & Ward: " + str(e))
 
-    if st.button("SIGUIENTE"):
-        st.session_state.page = 5
-        st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("ANTERIOR"):
+            st.session_state.page = 3
+            st.rerun()
+    with col2:
+        if st.button("SIGUIENTE"):
+            st.session_state.page = 5
+            st.rerun()
 
 # ---------- Model definitions and FO (función objetivo) ----------
 def GGS_model(d, m, Dm):
@@ -674,9 +686,15 @@ def page_5():
             ax.grid(True)
             st.pyplot(fig)
 
-    if st.button("SIGUIENTE"):
-        st.session_state.page = 6
-        st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("ANTERIOR"):
+            st.session_state.page = 4
+            st.rerun()
+    with col2:
+        if st.button("SIGUIENTE"):
+            st.session_state.page = 6
+            st.rerun()
 
 # ---------- PÁGINA 6: Exportación ----------
 def page_6():
@@ -739,7 +757,6 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
 
 
