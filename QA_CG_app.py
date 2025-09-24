@@ -196,8 +196,7 @@ def compute_analysis(df_in, mode, total_weight):
     df_in: DataFrame con columnas ['Nº Malla (Tyler)','Abertura (µm)','Peso (g)']
            o ['Tamaño (µm)','Peso (g)']
     mode: "SELECCIONAR MALLAS" o "INSERTAR MANUALMENTE"
-    
- total_weight: valor ingresado en page_2
+    total_weight: valor ingresado en page_2
     """
     df = df_in.copy()
 
@@ -208,7 +207,6 @@ def compute_analysis(df_in, mode, total_weight):
     if 'Tamaño (µm)' in df.columns and 'Tamaño inferior (µm)' not in df.columns:
         df.rename(columns={'Tamaño (µm)': 'Tamaño inferior (µm)'}, inplace=True)
 
- 
     # Asegurar datos numéricos
     df['Tamaño inferior (µm)'] = pd.to_numeric(df['Tamaño inferior (µm)'], errors='coerce')
     df['Peso (g)'] = pd.to_numeric(df['Peso (g)'], errors='coerce').fillna(0.0)
@@ -221,8 +219,7 @@ def compute_analysis(df_in, mode, total_weight):
     for i in range(len(df)):
         if i == 0:
             sup = df.loc[i, 'Tamaño inferior (µm)'] * np.sqrt(2)
-     
-    else:
+        else:
             sup = df.loc[i-1, 'Tamaño inferior (µm)']
         size_sup.append(sup)
     df['Tamaño superior (µm)'] = size_sup
@@ -232,8 +229,7 @@ def compute_analysis(df_in, mode, total_weight):
     if len(df) > 0:
         extra_row = {
             'Tamaño inferior (µm)': 0.0,
-           
- 'Tamaño superior (µm)': df.loc[len(df)-1, 'Tamaño inferior (µm)'],
+            'Tamaño superior (µm)': df.loc[len(df)-1, 'Tamaño inferior (µm)'],
             'Tamaño promedio (µm)': df.loc[len(df)-1, 'Tamaño inferior (µm)'] / 2,
             'Peso (g)': peso_resto
         }
@@ -256,22 +252,19 @@ def compute_analysis(df_in, mode, total_weight):
         'Tamaño promedio (µm)': np.nan,
         'Peso (g)': total_weight,
         '%Peso': 100.0,
-      
-    '%R(d)': np.nan,
+        '%R(d)': np.nan,
         '%F(d)': np.nan
     }
     if mode == "SELECCIONAR MALLAS" and 'Nº Malla (Tyler)' in df_in.columns:
         df['Nº de malla (intervalo)'] = list(df_in['Nº Malla (Tyler)']) + ['extra']  # para el resto
         total_row['Nº de malla (intervalo)'] = 'TOTAL'
         cols_order = ['Nº de malla (intervalo)', 'Tamaño superior (µm)',
-                   
-    'Tamaño inferior (µm)', 'Tamaño promedio (µm)',
+                      'Tamaño inferior (µm)', 'Tamaño promedio (µm)',
                       'Peso (g)', '%Peso', '%F(d)', '%R(d)']
     else:
         cols_order = ['Tamaño superior (µm)', 'Tamaño inferior (µm)',
                       'Tamaño promedio (µm)', 'Peso (g)',
-                     
- '%Peso', '%F(d)', '%R(d)']
+                      '%Peso', '%F(d)', '%R(d)']
 
     # Concatenar fila de totales
     df = pd.concat([df, pd.DataFrame([total_row])], ignore_index=True)
@@ -797,6 +790,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
