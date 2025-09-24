@@ -263,20 +263,31 @@ def page_3():
     st.title("ANÁLISIS GRANULOMÉTRICO")
     df_in = st.session_state.input_table.copy()
     total_weight = st.session_state.get('peso_total', 0.0)
+
     if df_in.empty:
         st.error("No hay datos de entrada. Regresa y genera la tabla de datos.")
         if st.button("Regresar"):
             st.session_state.page = 2
-            st.experimental_rerun()
+            st.rerun()
         return
+
+    # Evitar que se recalculen los resultados cada vez que cambias gráfico
     if st.session_state.results_table.empty:
-    results = compute_analysis(df_in, st.session_state.selected_mode, total_weight)
-    st.session_state.results_table = results
+        results = compute_analysis(df_in, st.session_state.selected_mode, total_weight)
+        st.session_state.results_table = results
     else:
-    results = st.session_state.results_table
+        results = st.session_state.results_table
 
     st.markdown("**Tabla de resultados**")
-    st.dataframe(results.style.format({"Peso (g)":"{:.3f}", "%Peso":"{:.3f}", "%F(d)":"{:.3f}", "%R(d)":"{:.3f}"}), height=300)
+    st.dataframe(
+        results.style.format({
+            "Peso (g)": "{:.3f}",
+            "%Peso": "{:.3f}",
+            "%F(d)": "{:.3f}",
+            "%R(d)": "{:.3f}"
+        }),
+        height=300
+    )
 
     # Gráficos
     st.markdown("**Seleccione gráfico**")
@@ -288,18 +299,21 @@ def page_3():
         "Diagrama Acumulativo (Combinación)",
         "Curvas granulométricas (Combinación 2,3,4)"
     ])
-    escala = st.selectbox("Escala", ["Escala decimal", "Escala semilogarítmica (X log)", "Escala logarítmica (ambos log)"])
-    # prepare plotting arrays (exclude last negative row? We included last row as 0-size)
+    escala = st.selectbox(
+        "Escala",
+        ["Escala decimal", "Escala semilogarítmica (X log)", "Escala logarítmica (ambos log)"]
+    )
+
+    # Datos para gráficos
     plot_df = results.copy()
-    # Use Tamaño promedio or Tamaño inferior as x-axis
     x = plot_df['Tamaño promedio (µm)'].replace(0, np.nan)
     y_pct = plot_df['%Peso']
     yf = plot_df['%F(d)']
     yr = plot_df['%R(d)']
 
-    fig, ax = plt.subplots(figsize=(8,4))
+    fig, ax = plt.subplots(figsize=(8, 4))
     if grafico == "Histograma de frecuencia":
-        ax.bar(x, y_pct, width=np.nanmax(x)/len(x) if len(x)>0 else 1)
+        ax.bar(x, y_pct, width=np.nanmax(x) / len(x) if len(x) > 0 else 1)
         ax.set_xlabel("Tamaño (µm)")
         ax.set_ylabel("%Peso")
     elif grafico == "Diagrama de simple distribución":
@@ -320,7 +334,7 @@ def page_3():
         ax.set_xlabel("Tamaño (µm)")
         ax.set_ylabel("Porcentaje")
         ax.legend()
-    else: # Curvas granulométricas (2,3,4)
+    else:  # Curvas granulométricas (2,3,4)
         ax.plot(x, y_pct, label='%Peso', marker='s')
         ax.plot(x, yf, label='%F(d)', marker='o')
         ax.plot(x, yr, label='%R(d)', marker='x')
@@ -328,7 +342,7 @@ def page_3():
         ax.set_ylabel("Porcentaje")
         ax.legend()
 
-    # Scale options
+    # Escalas
     if escala == "Escala semilogarítmica (X log)":
         ax.set_xscale('log')
     elif escala == "Escala logarítmica (ambos log)":
@@ -713,6 +727,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
