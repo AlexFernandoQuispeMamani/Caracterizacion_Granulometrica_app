@@ -118,7 +118,13 @@ def page_2():
     st.markdown("Inserte tamaños y pesos retenidos sobre cada tamiz para efectuar el análisis granulométrico.")
     
     # Store the total weight in session_state, using a key
-    st.session_state.peso_total = st.number_input("Peso total (g)", min_value=0.0, value=st.session_state.peso_total, step=0.1, key='peso_total_input')
+    peso_total_mod = st.number_input(
+    "Peso total (g)", 
+    min_value=0.0, 
+    value=st.session_state.peso_total, 
+    step=0.1
+    )
+    st.session_state.peso_total = peso_total_mod
     
     st.markdown("Elija método para introducir datos:")
     
@@ -764,6 +770,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
