@@ -124,7 +124,7 @@ def page_2():
     st.session_state.peso_total = st.number_input("Peso total (g)", min_value=0.0, value=st.session_state.peso_total, step=0.1, key='peso_total_input')
     
     st.markdown("Elija método para introducir datos:")
-   
+    
     mode = st.radio("Modo", ["SELECCIONAR MALLAS", "INSERTAR MANUALMENTE"], index=0)
     st.session_state.selected_mode = mode
 
@@ -149,7 +149,6 @@ def page_2():
                     k = key
             selected_keys.append(k)
         # Generate default table
-        
         if 'generated_mallas' not in st.session_state:
             st.session_state.generated_mallas = []
         if st.button("Generar tabla de mallas"):
@@ -157,7 +156,6 @@ def page_2():
             for k in selected_keys:
                 rows.append({'Nº Malla (Tyler)': str(k)+'#', 'Abertura (µm)': TYLER.get(k, np.nan), 'Peso (g)': np.nan})
             df = pd.DataFrame(rows)
- 
             st.session_state.input_table = df
             st.session_state.generated_mallas = selected_keys
             st.rerun()
@@ -166,8 +164,7 @@ def page_2():
         st.info("Ingrese el número de datos (entre 3 y 25).")
         n = st.number_input("Número de filas a insertar", min_value=3, max_value=25, value=6, step=1)
         if st.button("Generar tabla manual"):
-        
-     df = pd.DataFrame({
+            df = pd.DataFrame({
                 'Tamaño (µm)': [np.nan]*n,
                 'Peso (g)': [np.nan]*n
             })
@@ -175,13 +172,12 @@ def page_2():
             st.rerun()
 
     st.markdown("**Tabla de entrada** (edítala con los pesos y tamaños necesarios):")
-    # Show editable 
- table
+    # Show editable table
     if not st.session_state.input_table.empty:
         edited = st.data_editor(st.session_state.input_table, num_rows="dynamic")
         st.session_state.input_table = edited
 
-    st.markdown("**Recomendación:** seleccionar MALLAS si trabajas con tamices; insertar manualmente si no se usan mallas estandarizadas.")
+    st.markdown("**Recomendación:** seleccionar MALLAS si trabajas con tamices;insertar manualmente si no se usan mallas estandarizadas.")
     if st.button("EJECUTAR"):
         # Validate
         df = st.session_state.input_table.copy()
@@ -189,8 +185,7 @@ def page_2():
             st.error("Debes generar y completar la tabla antes de ejecutar.")
         else:
             # Ensure Peso column exists
-            if 'Peso (g)' not 
- in df.columns and 'Peso (g)' in df.columns:
+            if 'Peso (g)' in df.columns:
                 pass
             st.session_state.page = 3
             st.rerun()
@@ -802,6 +797,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
