@@ -211,6 +211,16 @@ def compute_analysis(df_in, mode, total_weight):
         size_sup.append(sup)
     df['Tamaño superior (µm)'] = size_sup
 
+    # Agregar fila final (< Tamaño mínimo)
+    peso_resto = max(total_weight - df['Peso (g)'].sum(), 0.0)
+    if len(df) > 0:
+        extra_row = {
+            'Tamaño inferior (µm)': 0.0,
+            'Tamaño superior (µm)': df.loc[len(df)-1, 'Tamaño inferior (µm)'],
+            'Peso (g)': peso_resto
+        }
+        df = pd.concat([df, pd.DataFrame([extra_row])], ignore_index=True)
+
     # Tamaño promedio
     df['Tamaño promedio (µm)'] = (df['Tamaño superior (µm)'] + df['Tamaño inferior (µm)']) / 2.0
 
@@ -221,19 +231,9 @@ def compute_analysis(df_in, mode, total_weight):
     df['%R(d)'] = df['%Peso'].cumsum()
     df['%F(d)'] = 100.0 - df['%R(d)']
 
-    # ---- Agregar fila de totales ----
-    total_row = {
-        'Tamaño superior (µm)': np.nan,
-        'Tamaño inferior (µm)': np.nan,
-        'Tamaño promedio (µm)': np.nan,
-        'Peso (g)': total_weight,
-        '%Peso': 100.0,
-        '%R(d)': np.nan,
-        '%F(d)': np.nan
-    }
+    # Reordenar columnas
     if mode == "SELECCIONAR MALLAS" and 'Nº Malla (Tyler)' in df_in.columns:
-        df['Nº de malla (intervalo)'] = df_in['Nº Malla (Tyler)']
-        total_row['Nº de malla (intervalo)'] = 'TOTAL'
+        df['Nº de malla (intervalo)'] = list(df_in['Nº Malla (Tyler)']) + ['']
         cols_order = ['Nº de malla (intervalo)', 'Tamaño superior (µm)',
                       'Tamaño inferior (µm)', 'Tamaño promedio (µm)',
                       'Peso (g)', '%Peso', '%F(d)', '%R(d)']
@@ -242,11 +242,8 @@ def compute_analysis(df_in, mode, total_weight):
                       'Tamaño promedio (µm)', 'Peso (g)',
                       '%Peso', '%F(d)', '%R(d)']
 
-    # Concatenar fila de totales
-    df = pd.concat([df, pd.DataFrame([total_row])], ignore_index=True)
-
     return df[cols_order]
-    
+
 # ---------- PÁGINA 3: Análisis granulométrico (Resultados) ----------
 def page_3():
     st.title("ANÁLISIS GRANULOMÉTRICO")
@@ -698,6 +695,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
