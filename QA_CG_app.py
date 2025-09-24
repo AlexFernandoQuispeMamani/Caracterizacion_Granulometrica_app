@@ -194,37 +194,46 @@ def compute_analysis(df_in, mode, total_weight):
     if 'Tamaño (µm)' in df.columns and 'Tamaño inferior (µm)' not in df.columns:
         df.rename(columns={'Tamaño (µm)':'Tamaño inferior (µm)'}, inplace=True)
 
-    # Asegurar que los tamaños sean numéricos
+    # Asegurar datos numéricos
     df['Tamaño inferior (µm)'] = pd.to_numeric(df['Tamaño inferior (µm)'], errors='coerce')
     df['Peso (g)'] = pd.to_numeric(df['Peso (g)'], errors='coerce').fillna(0.0)
 
-    # Ordenar de mayor a menor tamaño (estilo granulometría)
+    # Ordenar de mayor a menor tamaño
     df = df.sort_values(by='Tamaño inferior (µm)', ascending=False).reset_index(drop=True)
 
-    # Calcular Tamaño superior según tu regla
+    # Calcular Tamaño superior
     size_sup = []
     for i in range(len(df)):
         if i == 0:
-            # primera fila: tamaño superior = tamaño inferior * √2 (o puedes poner un valor fijo si prefieres)
             sup = df.loc[i, 'Tamaño inferior (µm)'] * np.sqrt(2)
         else:
             sup = df.loc[i-1, 'Tamaño inferior (µm)']
         size_sup.append(sup)
     df['Tamaño superior (µm)'] = size_sup
 
+    # Agregar fila final (< Tamaño mínimo)
+    peso_resto = max(total_weight - df['Peso (g)'].sum(), 0.0)
+    if len(df) > 0:
+        extra_row = {
+            'Tamaño inferior (µm)': 0.0,
+            'Tamaño superior (µm)': df.loc[len(df)-1, 'Tamaño inferior (µm)'],
+            'Peso (g)': peso_resto
+        }
+        df = pd.concat([df, pd.DataFrame([extra_row])], ignore_index=True)
+
     # Tamaño promedio
     df['Tamaño promedio (µm)'] = (df['Tamaño superior (µm)'] + df['Tamaño inferior (µm)']) / 2.0
 
-    # %Peso con respecto al peso total ingresado
+    # %Peso respecto al total ingresado
     df['%Peso'] = 100.0 * df['Peso (g)'] / total_weight
 
-    # %F(d) y %R(d) acumulados
+    # %R(d) acumulado retenido y %F(d) pasante
     df['%R(d)'] = df['%Peso'].cumsum()
     df['%F(d)'] = 100.0 - df['%R(d)']
 
-    # Agregar columna de malla si aplica
+    # Reordenar columnas
     if mode == "SELECCIONAR MALLAS" and 'Nº Malla (Tyler)' in df_in.columns:
-        df['Nº de malla (intervalo)'] = df_in['Nº Malla (Tyler)']
+        df['Nº de malla (intervalo)'] = list(df_in['Nº Malla (Tyler)']) + ['']
         cols_order = ['Nº de malla (intervalo)', 'Tamaño superior (µm)',
                       'Tamaño inferior (µm)', 'Tamaño promedio (µm)',
                       'Peso (g)', '%Peso', '%F(d)', '%R(d)']
@@ -686,6 +695,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
