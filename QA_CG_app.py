@@ -104,7 +104,7 @@ def page_1():
                 'codigo': codigo, 'fecha': fecha_muestreo.isoformat()
             })
             st.session_state.page = 2
-            st.experimental_rerun()
+            st.rerun()
 
 # ---------- PÁGINA 2: Datos experimentales ----------
 def page_2():
@@ -145,7 +145,7 @@ def page_2():
             df = pd.DataFrame(rows)
             st.session_state.input_table = df
             st.session_state.generated_mallas = selected_keys
-            st.experimental_rerun()
+            st.rerun()
 
     else:  # INSERTAR MANUALMENTE
         st.info("Ingrese el número de datos (entre 3 y 25).")
@@ -156,7 +156,7 @@ def page_2():
                 'Peso (g)': [np.nan]*n
             })
             st.session_state.input_table = df
-            st.experimental_rerun()
+            st.rerun()
 
     st.markdown("**Tabla de entrada** (edítala con los pesos y tamaños necesarios):")
     # Show editable table
@@ -176,7 +176,7 @@ def page_2():
                 pass
             st.session_state.peso_total = float(st.session_state.get('peso_total', total_weight))
             st.session_state.page = 3
-            st.experimental_rerun()
+            st.rerun()
 
 # ---------- Helper: compute granulometric analysis ----------
 def compute_analysis(df_in, mode, total_weight):
@@ -332,7 +332,7 @@ def page_3():
 
     if st.button("SIGUIENTE"):
         st.session_state.page = 4
-        st.experimental_rerun()
+        st.rerun()
 
 # ---------- PÁGINA 4: Análisis de datos ----------
 def page_4():
@@ -342,7 +342,7 @@ def page_4():
         st.error("No hay resultados calculados.")
         if st.button("Regresar"):
             st.session_state.page = 3
-            st.experimental_rerun()
+            st.rerun()
         return
 
     # ---------- Sección 1: ANÁLISIS ESTADÍSTICO ----------
@@ -503,7 +503,7 @@ def page_4():
 
     if st.button("SIGUIENTE"):
         st.session_state.page = 5
-        st.experimental_rerun()
+        st.rerun()
 
 # ---------- Model definitions and FO (función objetivo) ----------
 def GGS_model(d, m, Dm):
@@ -539,7 +539,7 @@ def page_5():
         st.error("No hay datos procesados.")
         if st.button("Regresar"):
             st.session_state.page = 4
-            st.experimental_rerun()
+            st.rerun()
         return
     # Prepare data for fitting: use Tamaño promedio and %F(d); exclude last negative row if exists
     d = results['Tamaño promedio (µm)'].astype(float).values
@@ -598,7 +598,7 @@ def page_5():
                 'DoubleWeibull': {'FO':FO_dw, 'params':dw_params}
             }
             st.success("Ajustes realizados.")
-            st.experimental_rerun()
+            st.rerun()
 
         # Show results if present
         if st.session_state.models_fit:
@@ -639,7 +639,7 @@ def page_5():
 
     if st.button("SIGUIENTE"):
         st.session_state.page = 6
-        st.experimental_rerun()
+        st.rerun()
 
 # ---------- PÁGINA 6: Exportación ----------
 def page_6():
@@ -680,7 +680,7 @@ def page_6():
 
     if st.button("VOLVER AL INICIO"):
         st.session_state.page = 1
-        st.experimental_rerun()
+        st.rerun()
 
 # ---------- Page router ----------
 def main():
@@ -704,3 +704,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
