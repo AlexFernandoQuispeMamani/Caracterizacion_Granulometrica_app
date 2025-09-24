@@ -171,7 +171,7 @@ def page_2():
         st.info("Seleccione las mallas de la serie Tyler. Se generará una tabla con la abertura (µm) prellenada.")
         # Build options from TYLER dict, order descending by aperture
         malla_options = sorted(TYLER.items(), key=lambda x: -x[1])
-        labels = [f"{int(k) if float(k).is_integer() else k} - {v} µm" for k,v in malla_options]
+        labels = [f"{k} - {v} µm" for k,v in malla_options]
         # Use multiselect
         selected = st.multiselect("Selecciona mallas (múltiple)", labels)
         # Map selected labels back to keys
@@ -729,6 +729,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
