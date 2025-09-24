@@ -834,7 +834,8 @@ def page_6():
         download_url = f"file://{tmp.name}"
         # generate QR of the file path (local)
         qr = qrcode.make(download_url)
-        st.image(qr)
+        qr_img = qr.make_image(fill_color="black", back_color="white")
+        st.image(qr_img, caption="Escanea este código QR")
         st.success(f"Archivo guardado temporalmente: {tmp.name}")
 
     if st.button("VOLVER AL INICIO"):
@@ -860,4 +861,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
