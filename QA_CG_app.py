@@ -167,19 +167,25 @@ def page_2():
         st.session_state.input_table = edited
 
     st.markdown("**Recomendación:** seleccionar MALLAS si trabajas con tamices; insertar manualmente si no se usan mallas estandarizadas.")
-    if st.button("EJECUTAR"):
-        # Validate
-        df = st.session_state.input_table.copy()
-        if df.empty:
-            st.error("Debes generar y completar la tabla antes de ejecutar.")
-        else:
-            # Ensure Peso column exists
-            if 'Peso (g)' not in df.columns:
-                st.error("La columna 'Peso (g)' no se encuentra en la tabla.")
+    cols = st.columns(2)
+    with cols[0]:
+        if st.button("EJECUTAR"):
+            # Validate
+            df = st.session_state.input_table.copy()
+            if df.empty:
+                st.error("Debes generar y completar la tabla antes de ejecutar.")
             else:
-                st.session_state.page = 3
-                st.rerun()
-
+                # Ensure Peso column exists
+                if 'Peso (g)' not in df.columns:
+                    st.error("La columna 'Peso (g)' no se encuentra en la tabla.")
+                else:
+                    st.session_state.page = 3
+                    st.rerun()
+    with cols[1]:
+        if st.button("ANTERIOR"):
+            st.session_state.page = 1
+            st.rerun()
+            
 # ---------- Helper: compute granulometric analysis ----------
 def compute_analysis(df_in, mode, total_weight):
     """
@@ -355,9 +361,15 @@ def page_3():
     ax.set_title(grafico)
     st.pyplot(fig)
 
-    if st.button("SIGUIENTE"):
-        st.session_state.page = 4
-        st.rerun()
+    cols = st.columns(2)
+    with cols[0]:
+        if st.button("SIGUIENTE"):
+            st.session_state.page = 4
+            st.rerun()
+    with cols[1]:
+        if st.button("ANTERIOR"):
+            st.session_state.page = 2
+            st.rerun()
 
 # ---------- PÁGINA 4: Análisis de datos ----------
 def page_4():
@@ -524,10 +536,16 @@ def page_4():
             st.markdown(f"**Interpretación:** {disp_comment} {skew_comment} {kurt_comment}")
         except Exception as e:
             st.error("No se pueden calcular Folk & Ward: " + str(e))
-
-    if st.button("SIGUIENTE"):
-        st.session_state.page = 5
-        st.rerun()
+    
+    cols = st.columns(2)
+    with cols[0]:
+        if st.button("SIGUIENTE"):
+            st.session_state.page = 5
+            st.rerun()
+    with cols[1]:
+        if st.button("ANTERIOR"):
+            st.session_state.page = 3
+            st.rerun()
 
 # ---------- Model definitions and FO (función objetivo) ----------
 def GGS_model(d, m, Dm):
@@ -659,10 +677,16 @@ def page_5():
             ax.grid(True)
             st.pyplot(fig)
 
-    if st.button("SIGUIENTE"):
-        st.session_state.page = 6
-        st.rerun()
-
+    cols = st.columns(2)
+    with cols[0]:
+        if st.button("SIGUIENTE"):
+            st.session_state.page = 6
+            st.rerun()
+    with cols[1]:
+        if st.button("ANTERIOR"):
+            st.session_state.page = 4
+            st.rerun()
+            
 # ---------- PÁGINA 6: Exportación ----------
 def page_6():
     st.title("EXPORTACIÓN DE DATOS")
@@ -698,9 +722,15 @@ def page_6():
         st.markdown("Escanea el QR para descargar el archivo (si tu lector soporta data URLs).")
         st.success(f"Archivo guardado temporalmente en: {tmp.name}")
 
-    if st.button("VOLVER AL INICIO"):
-        st.session_state.page = 1
-        st.rerun()
+    cols = st.columns(2)
+    with cols[0]:
+        if st.button("VOLVER AL INICIO"):
+            st.session_state.page = 1
+            st.rerun()
+    with cols[1]:
+        if st.button("ANTERIOR"):
+            st.session_state.page = 5
+            st.rerun()
 
 # ---------- Page router ----------
 def main():
