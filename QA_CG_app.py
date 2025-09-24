@@ -801,42 +801,45 @@ def page_6():
     st.title("EXPORTACIÓN DE DATOS")
     st.markdown("Descargar todas las tablas en un archivo Excel o guardar el análisis y generar un QR para compartir.")
 
-    # Build Excel in memory
+    # Construir Excel en memoria
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        # save user info
-        ui = pd.DataFrame([st.session_state['user_info']])
-        ui.to_excel(writer, sheet_name='InfoUsuario', index=False)
-        # Input table
-        if not st.session_state.input_table.empty:
+        # Info usuario
+        if "user_info" in st.session_state:
+            ui = pd.DataFrame([st.session_state['user_info']])
+            ui.to_excel(writer, sheet_name='InfoUsuario', index=False)
+        # Tabla de entrada
+        if "input_table" in st.session_state and not st.session_state.input_table.empty:
             st.session_state.input_table.to_excel(writer, sheet_name='Entrada', index=False)
-        # Results
-        if not st.session_state.results_table.empty:
+        # Resultados
+        if "results_table" in st.session_state and not st.session_state.results_table.empty:
             st.session_state.results_table.to_excel(writer, sheet_name='Resultados', index=False)
-        # Nominal sizes
-        if not st.session_state.nominal_sizes.empty:
+        # Tamaños nominales
+        if "nominal_sizes" in st.session_state and not st.session_state.nominal_sizes.empty:
             st.session_state.nominal_sizes.to_excel(writer, sheet_name='TamañosNominales', index=False)
-        # Models
-        if st.session_state.models_fit:
-            models_df = pd.DataFrame([{'Modelo':k, 'FO':v['FO'], 'Parametros':str(v['params'])} for k,v in st.session_state.models_fit.items()])
+        # Modelos
+        if "models_fit" in st.session_state and st.session_state.models_fit:
+            models_df = pd.DataFrame([
+                {'Modelo': k, 'FO': v['FO'], 'Parametros': str(v['params'])}
+                for k, v in st.session_state.models_fit.items()
+            ])
             models_df.to_excel(writer, sheet_name='Modelos', index=False)
+
     data = output.getvalue()
 
+    # Descargar Excel
     b64 = base64.b64encode(data).decode()
-    href = f'<a href="data:application/octet-stream;base64,{b64}" download="analisis_granulometrico.xlsx">Descargar Excel (analisis_granulometrico.xlsx)</a>'
+    href = f'<a href="data:application/octet-stream;base64,{b64}" download="analisis_granulometrico.xlsx">📥 Descargar Excel (analisis_granulometrico.xlsx)</a>'
     st.markdown(href, unsafe_allow_html=True)
 
+    # Generar QR
     if st.button("GUARDAR (generar QR de descarga)"):
-        # save temp file and produce QR for base64 data URL (note: large files may be impractical as data URLs)
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
-        with open(tmp.name, 'wb') as f:
-            f.write(data)
-        download_url = f"file://{tmp.name}"
-        # generate QR of the file path (local)
-        qr = qrcode.make(download_url)
-        qr_img = qr.make_image(fill_color="black", back_color="white")
-        st.image(qr_img, caption="Escanea este código QR")
-        st.success(f"Archivo guardado temporalmente: {tmp.name}")
+        # ⚠️ En Streamlit Cloud no sirve file://tmp, mejor usar un link público (ej: tu repo en GitHub o el link de la app)
+        # Aquí como ejemplo apunto al mismo repositorio (puedes cambiarlo por otra URL)
+        repo_url = "https://github.com/tu_usuario/tu_repo"  # 🔗 cambia por tu enlace real
+        qr_img = qrcode.make(repo_url)
+        st.image(qr_img, caption="Escanea este código QR para abrir el repositorio/app")
+        st.success("QR generado correctamente.")
 
     if st.button("VOLVER AL INICIO"):
         st.session_state.page = 1
@@ -861,5 +864,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
