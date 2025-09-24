@@ -1,12 +1,3 @@
-Aquí tienes el código completo de tu aplicación de Streamlit con la corrección necesaria para que puedas modificar el peso total y otros datos al regresar a la página 2.
-
-El cambio principal se encuentra en la función `page_2()`, dentro del bloque que se ejecuta cuando se presiona el botón **"EJECUTAR"**. He añadido una línea para asegurar que la tabla de resultados anterior se borre de la sesión, forzando así un nuevo cálculo del análisis granulométrico con los datos y el peso total actualizados.
-
------
-
-### ⚙️ Código Corregido
-
-```python
 # -*- coding: utf-8 -*-
 """
 Created on Tue Sep 23 21:15:05 2025
@@ -737,8 +728,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-```
-
 
 
 
