@@ -608,8 +608,7 @@ double_weibull(d_fit, alpha, k1, k2, d80))**2)
             st.table(fo_tbl)
             best = min(fits.items(), key=lambda x: x[1]['FO'])
             best_model_name = best[0]
-            st.markdown(f"**El mejor modelo es {best_model_name} con F.O.
-= {best[1]['FO']:.3f}**")
+            st.markdown(f"**El mejor modelo es {best_model_name} con F.O.= {best[1]['FO']:.3f}**")
             if best[1]['FO'] > 1e6:
                 st.warning("Ningún modelo representa bien los datos experimentales (F.O. muy grande).")
             st.subheader("Parámetros estimados del mejor modelo")
@@ -698,6 +697,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
