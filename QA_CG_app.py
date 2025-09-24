@@ -119,14 +119,14 @@ def page_2():
     
     # Peso total permanente en session_state
     st.session_state.setdefault('peso_total', 1000.0)
-    st.number_input(
+    peso_total_mod = st.number_input(
         "Peso total (g)", 
         min_value=0.0, 
         value=float(st.session_state.peso_total), 
         step=0.1,
-        key='peso_total'  # persistente
+        key='peso_total_input'   
     )
-    st.session_state.peso_total = float(st.session_state.peso_total)
+    st.session_state.peso_total = float(peso_total_mod)
     
     st.markdown("Elija método para introducir datos:")
     mode = st.radio("Modo", ["SELECCIONAR MALLAS", "INSERTAR MANUALMENTE"], index=0)
@@ -757,6 +757,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
