@@ -184,6 +184,7 @@ def page_2():
             # Ensure Peso column exists
             if 'Peso (g)' in df.columns:
                 pass
+            st.session_state.results_table = pd.DataFrame() # <<-- FIX: reset results table
             st.session_state.page = 3
             st.rerun()
 
@@ -282,11 +283,9 @@ def page_3():
         return
 
     # Evitar que se recalcule los resultados cada vez que cambias gráfico
-    if st.session_state.results_table.empty:
-        results = compute_analysis(df_in, st.session_state.selected_mode, total_weight)
-        st.session_state.results_table = results
-    else:
-        results = st.session_state.results_table
+    # FIX: No need for this if statement. Just recompute every time page 3 is loaded.
+    results = compute_analysis(df_in, st.session_state.selected_mode, total_weight)
+    st.session_state.results_table = results
 
     st.markdown("**Tabla de resultados**")
     st.dataframe(
@@ -352,6 +351,9 @@ def page_3():
         ax.set_ylabel("Porcentaje")
         ax.legend()
 
+    # FIX: Set Y-axis limits and ticks
+    ax.set_ylim(0, 100)
+    ax.set_yticks(np.arange(0, 101, 10))
     # Escalas
     if escala == "Escala semilogarítmica (X log)":
         ax.set_xscale('log')
@@ -424,6 +426,9 @@ def page_4():
         ax.set_xscale('linear')
         ax.set_yscale('linear')
         ax.grid(True)
+        # FIX: Set Y-axis for this plot too
+        ax.set_ylim(0, 100)
+        ax.set_yticks(np.arange(0, 101, 10))
         st.pyplot(fig)
         # compute d80 by interpolation/extrapolation
         
@@ -684,6 +689,9 @@ def page_5():
             ax.set_ylabel("%F(d)")
             ax.legend()
             ax.grid(True)
+            # FIX: Set Y-axis limits and ticks
+            ax.set_ylim(0, 100)
+            ax.set_yticks(np.arange(0, 101, 10))
             st.pyplot(fig)
 
     col1, col2 = st.columns(2)
@@ -757,7 +765,6 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
 
 
