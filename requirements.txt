@@ -1,0 +1,8 @@
+streamlit>=1.18
+pandas
+numpy
+matplotlib
+scipy
+qrcode
+Pillow
+openpyxl
