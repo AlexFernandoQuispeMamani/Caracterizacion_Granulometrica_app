@@ -180,77 +180,60 @@ def page_2():
 # ---------- Helper: compute granulometric analysis ----------
 def compute_analysis(df_in, mode, total_weight):
     """
-    df_in: DataFrame with either columns ['Nº Malla (Tyler)','Abertura (µm)','Peso (g)']
-           or ['Tamaño (µm)','Peso (g)']
-    mode: "SELECCIONAR MALLAS" or "INSERTAR MANUALMENTE"
-    returns results DataFrame in the format requested.
+    df_in: DataFrame con columnas ['Nº Malla (Tyler)','Abertura (µm)','Peso (g)']
+           o ['Tamaño (µm)','Peso (g)']
+    mode: "SELECCIONAR MALLAS" o "INSERTAR MANUALMENTE"
+    total_weight: valor ingresado en page_2
     """
     df = df_in.copy()
-    # Normalize column names
+
+    # Normalizar nombres
     if 'Abertura (µm)' in df.columns:
-        df.rename(columns={'Abertura (µm)':'Tamaño inferior (µm)', 'Peso (g)':'Peso (g)'}, inplace=True)
+        df.rename(columns={'Abertura (µm)':'Tamaño inferior (µm)',
+                           'Peso (g)':'Peso (g)'}, inplace=True)
     if 'Tamaño (µm)' in df.columns and 'Tamaño inferior (µm)' not in df.columns:
         df.rename(columns={'Tamaño (µm)':'Tamaño inferior (µm)'}, inplace=True)
-    # Ensure Peso numeric
+
+    # Asegurar que los tamaños sean numéricos
+    df['Tamaño inferior (µm)'] = pd.to_numeric(df['Tamaño inferior (µm)'], errors='coerce')
     df['Peso (g)'] = pd.to_numeric(df['Peso (g)'], errors='coerce').fillna(0.0)
-    # Add size superior: immediate superior of Tyler series if available, else multiply max by sqrt(2)
-    sizes = list(df['Tamaño inferior (µm)'].astype(float))
-    sizes_sorted = sizes.copy()
-    # compute upper size as next larger Tyler or size * sqrt(2) for largest
+
+    # Ordenar de mayor a menor tamaño (estilo granulometría)
+    df = df.sort_values(by='Tamaño inferior (µm)', ascending=False).reset_index(drop=True)
+
+    # Calcular Tamaño superior según tu regla
     size_sup = []
-    for s in sizes_sorted:
-        # find Tyler size immediate superior (larger aperture)
-        candidates = [v for v in TYLER.values() if v > s]
-        if len(candidates)>0:
-            sup = min(candidates)
+    for i in range(len(df)):
+        if i == 0:
+            # primera fila: tamaño superior = tamaño inferior * √2 (o puedes poner un valor fijo si prefieres)
+            sup = df.loc[i, 'Tamaño inferior (µm)'] * np.sqrt(2)
         else:
-            # no larger in TYLER -> multiply by sqrt(2)
-            sup = s * np.sqrt(2)
+            sup = df.loc[i-1, 'Tamaño inferior (µm)']
         size_sup.append(sup)
     df['Tamaño superior (µm)'] = size_sup
+
     # Tamaño promedio
     df['Tamaño promedio (µm)'] = (df['Tamaño superior (µm)'] + df['Tamaño inferior (µm)']) / 2.0
-    # %Peso
-    total_pesos = df['Peso (g)'].sum()
-    # the extra-last-row weight = total_weight - sum(pesos)
-    last_extra = max(total_weight - total_pesos, 0.0)
-    # Append extra row
-    extra_row = {
-        'Tamaño inferior (µm)': 0.0,
-        'Tamaño superior (µm)': 0.0,
-        'Tamaño promedio (µm)': 0.0,
-        'Peso (g)': last_extra
-    }
-    df = pd.concat([df, pd.DataFrame([extra_row])], ignore_index=True)
+
+    # %Peso con respecto al peso total ingresado
     df['%Peso'] = 100.0 * df['Peso (g)'] / total_weight
-    # %F(d) (acumulado pasante): first row 100 - %Peso[0], then previous F(d) - %Peso[i]
-    F = []
-    # compute passing cumulatively: the idea: first row pass = 100 - %peso_row0, next pass = previous_pass - %peso_row1, etc.
-    prev = 100.0
-    for p in df['%Peso']:
-        newF = prev - p
-        F.append(max(newF, 0.0))
-        prev = newF
-    df['%F(d)'] = F
-    df['%R(d)'] = 100.0 - df['%F(d)']
-    # Add Nº malla column if mode selected mallas
-    if mode == "SELECCIONAR MALLAS" and 'Nº Malla (Tyler)' in st.session_state.input_table.columns:
-        # Attempt to map previous input column
-        if 'Nº Malla (Tyler)' in st.session_state.input_table.columns:
-            df['Nº de malla (intervalo)'] = list(st.session_state.input_table.get('Nº Malla (Tyler)', ['']*len(df))) + ['']
-        else:
-            df['Nº de malla (intervalo)'] = [''] * len(df)
-    # Format columns
-    cols_order = []
-    if mode == "SELECCIONAR MALLAS":
-        cols_order.append('Nº de malla (intervalo)')
-    cols_order += ['Tamaño superior (µm)', 'Tamaño inferior (µm)', 'Tamaño promedio (µm)', 'Peso (g)', '%Peso', '%F(d)', '%R(d)']
-    # Ensure all columns exist
-    for c in cols_order:
-        if c not in df.columns:
-            df[c] = np.nan
-    df = df[cols_order]
-    return df
+
+    # %F(d) y %R(d) acumulados
+    df['%R(d)'] = df['%Peso'].cumsum()
+    df['%F(d)'] = 100.0 - df['%R(d)']
+
+    # Agregar columna de malla si aplica
+    if mode == "SELECCIONAR MALLAS" and 'Nº Malla (Tyler)' in df_in.columns:
+        df['Nº de malla (intervalo)'] = df_in['Nº Malla (Tyler)']
+        cols_order = ['Nº de malla (intervalo)', 'Tamaño superior (µm)',
+                      'Tamaño inferior (µm)', 'Tamaño promedio (µm)',
+                      'Peso (g)', '%Peso', '%F(d)', '%R(d)']
+    else:
+        cols_order = ['Tamaño superior (µm)', 'Tamaño inferior (µm)',
+                      'Tamaño promedio (µm)', 'Peso (g)',
+                      '%Peso', '%F(d)', '%R(d)']
+
+    return df[cols_order]
 
 # ---------- PÁGINA 3: Análisis granulométrico (Resultados) ----------
 def page_3():
@@ -703,6 +686,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
