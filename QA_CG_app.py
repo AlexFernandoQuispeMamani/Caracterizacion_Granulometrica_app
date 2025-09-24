@@ -189,6 +189,8 @@ def page_2():
 # ---------- Helper: compute granulometric analysis ----------
 
 def compute_analysis(df_in, mode, total_weight):
+    print("DEBUG >>> total_weight recibido:", total_weight)
+    print("DEBUG >>> session_state.peso_total:", st.session_state.get('peso_total'))
     df = df_in.copy()
     total_weight = float(st.session_state.get('peso_total', total_weight))
 
@@ -752,6 +754,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
