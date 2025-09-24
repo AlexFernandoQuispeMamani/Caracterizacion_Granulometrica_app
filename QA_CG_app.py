@@ -213,7 +213,7 @@ def page_1():
                     'fecha': fecha_muestreo.isoformat()
                 }
                 st.session_state.page = 2
-                st.experimental_rerun()
+                st.rerun()
 
 # ---------- PÁGINA 2: Datos experimentales ----------
 def page_2():
@@ -262,7 +262,7 @@ def page_2():
             else:
                 st.session_state.input_table = pd.DataFrame(rows)
                 st.success("Tabla generada. Completa la columna 'Peso (g)' con tus datos y pulsa EJECUTAR.")
-                st.experimental_rerun()
+                st.rerun()
 
     else:  # INSERTAR MANUALMENTE
         st.info("Insertar manualmente los tamaños (µm) y pesos (g).")
@@ -271,7 +271,7 @@ def page_2():
             df = pd.DataFrame({'Tamaño (µm)': [np.nan]*int(n), 'Peso (g)': [np.nan]*int(n)})
             st.session_state.input_table = df
             st.success("Tabla generada. Completa los tamaños y pesos y pulsa EJECUTAR.")
-            st.experimental_rerun()
+            st.rerun()
 
     st.markdown("**Tabla de entrada** (edítala y luego pulsa EJECUTAR):")
     if not st.session_state.input_table.empty:
@@ -282,7 +282,7 @@ def page_2():
     with col1:
         if st.button("ANTERIOR"):
             st.session_state.page = 1
-            st.experimental_rerun()
+            st.rerun()
     with col2:
         if st.button("EJECUTAR"):
             # validation
@@ -295,7 +295,7 @@ def page_2():
                     st.session_state.results_table = results
                     st.success("Análisis calculado correctamente.")
                     st.session_state.page = 3
-                    st.experimental_rerun()
+                    st.rerun()
                 except Exception as e:
                     st.error(f"Error al calcular: {e}")
     with col3:
@@ -309,7 +309,7 @@ def page_3():
         st.error("No hay resultados calculados. Vuelve a la página de Datos Experimentales y pulsa EJECUTAR.")
         if st.button("Regresar a DATOS EXPERIMENTALES"):
             st.session_state.page = 2
-            st.experimental_rerun()
+            st.rerun()
         return
 
     # Mostrar tabla de resultados: formatear con 2 decimales, pero mantener valores numéricos
@@ -412,11 +412,11 @@ def page_3():
     with col1:
         if st.button("ANTERIOR"):
             st.session_state.page = 2
-            st.experimental_rerun()
+            st.rerun()
     with col2:
         if st.button("SIGUIENTE"):
             st.session_state.page = 4
-            st.experimental_rerun()
+            st.rerun()
 
 # ---------- PÁGINA 4: Análisis de datos ----------
 def page_4():
@@ -630,11 +630,11 @@ def page_4():
     with col1:
         if st.button("ANTERIOR"):
             st.session_state.page = 3
-            st.experimental_rerun()
+            st.rerun()
     with col2:
         if st.button("SIGUIENTE"):
             st.session_state.page = 5
-            st.experimental_rerun()
+            st.rerun()
 
 # ---------- MODELOS (GGS, RRSB, Doble Weibull) ----------
 def GGS_model(d, m, Dm):
@@ -794,7 +794,7 @@ def page_5():
     with col2:
         if st.button("SIGUIENTE"):
             st.session_state.page = 6
-            st.experimental_rerun()
+            st.rerun()
 
 # ---------- PÁGINA 6: Exportación ----------
 def page_6():
@@ -839,7 +839,7 @@ def page_6():
 
     if st.button("VOLVER AL INICIO"):
         st.session_state.page = 1
-        st.experimental_rerun()
+        st.rerun()
 
 # ---------- Router ----------
 def main():
@@ -860,3 +860,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
