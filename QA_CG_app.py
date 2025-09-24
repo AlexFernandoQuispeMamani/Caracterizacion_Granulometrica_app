@@ -221,7 +221,7 @@ def compute_analysis(df_in, mode, total_weight):
         'Tamaño promedio (µm)': 0.0,
         'Peso (g)': last_extra
     }
-    df = df.append(extra_row, ignore_index=True)
+    df = pd.concat([df, pd.DataFrame([extra_row])], ignore_index=True)
     df['%Peso'] = 100.0 * df['Peso (g)'] / total_weight
     # %F(d) (acumulado pasante): first row 100 - %Peso[0], then previous F(d) - %Peso[i]
     F = []
@@ -703,6 +703,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
