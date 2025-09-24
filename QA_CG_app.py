@@ -832,13 +832,12 @@ def page_6():
     href = f'<a href="data:application/octet-stream;base64,{b64}" download="analisis_granulometrico.xlsx">📥 Descargar Excel (analisis_granulometrico.xlsx)</a>'
     st.markdown(href, unsafe_allow_html=True)
 
-    # Generar QR
-    if st.button("GUARDAR (generar QR de descarga)"):
-        # ⚠️ En Streamlit Cloud no sirve file://tmp, mejor usar un link público (ej: tu repo en GitHub o el link de la app)
-        # Aquí como ejemplo apunto al mismo repositorio (puedes cambiarlo por otra URL)
-        repo_url = "https://github.com/tu_usuario/tu_repo"  # 🔗 cambia por tu enlace real
-        qr_img = qrcode.make(repo_url)
-        st.image(qr_img, caption="Escanea este código QR para abrir el repositorio/app")
+    # Botón: generar QR (separado de guardar)
+    if st.button("GENERAR QR"):
+        # 👉 Cambia este enlace por el link público de tu app en Streamlit Cloud o GitHub
+        public_url = "https://github.com/tu_usuario/tu_repo"
+        qr_img = qrcode.make(public_url)   # genera imagen PIL directamente
+        st.image(qr_img, caption="Escanea este código QR")
         st.success("QR generado correctamente.")
 
     if st.button("VOLVER AL INICIO"):
@@ -864,6 +863,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
