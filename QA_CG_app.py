@@ -145,7 +145,6 @@ def page_2():
         # Map selected labels back to keys
         selected_keys = []
         for lab in selected:
-            # lab like "26 - 500 µm"
             key = lab.split(" - ")[0]
             try:
                 k = int(key)
@@ -184,8 +183,8 @@ def page_2():
         edited = st.data_editor(st.session_state.input_table, num_rows="dynamic")
         st.session_state.input_table = edited
 
-    st.markdown("**Recomendación:** seleccionar MALLAS si trabajas con tamices;
-insertar manualmente si no se usan mallas estandarizadas.")
+    st.markdown("**Recomendación:** seleccionar MALLAS si trabajas con tamices; insertar manualmente si no se usan mallas estandarizadas.")
+
     if st.button("EJECUTAR"):
         # Validate
         df = st.session_state.input_table.copy()
@@ -413,8 +412,7 @@ variance, std, kurtosis, rango]
     })
     st.table(stats_tbl)
 
-    st.markdown("**Interpretación**: La varianza indica la dispersión de tamaños;
-un valor mayor significa mayor dispersión. El rango (máximo - mínimo) muestra la amplitud de tamaños presentes en la muestra.")
+    st.markdown("**Interpretación**: La varianza indica la dispersión de tamaños; un valor mayor significa mayor dispersión. El rango (máximo - mínimo) muestra la amplitud de tamaños presentes en la muestra.")
 
     # ---------- Sección 2: REGISTRO DE TAMAÑOS Y PORCENTAJES ----------
     st.header("REGISTRO DE TAMAÑOS Y PORCENTAJES")
@@ -497,13 +495,11 @@ un valor mayor significa mayor dispersión. El rango (máximo - mínimo) muestra
 
     # ---------- Sección 3: Estadísticos según Folk & Ward ----------
     st.header("ESTADÍSTICOS SEGÚN FOLK Y WARD")
-    st.markdown("Se usan tamaños nominales grabados en la sección anterior.
-Si no existen los tamaños requeridos, se mostrará un warning.")
+    st.markdown("Se usan tamaños nominales grabados en la sección anterior. Si no existen los tamaños requeridos, se mostrará un warning.")
     required_perc = [5,16,25,50,75,84]
     nom_df = st.session_state.nominal_sizes.copy()
     if nom_df.empty:
-        st.warning("Calcule los tamaños nominales requeridos en la sección anterior para mostrar los 
-estadísticos.")
+        st.warning("Calcule los tamaños nominales requeridos en la sección anterior para mostrar los estadísticos.")
     else:
         x = results['Tamaño promedio (µm)'].replace(0, np.nan)
         y = results['%F(d)']
@@ -538,30 +534,10 @@ estadísticos.")
         st.session_state.page = 5
         st.rerun()
 
-# ---------- Model definitions and FO (función objetivo) ----------
-def GGS_model(d, m, Dm):
-    return 100.0 * (1.0 / (1.0 + (d/Dm)**(-m)))
-
-def RRSB_model(d, m, l):
-    return 100.0 * (1 - np.exp(-(d/l)**m))
-
-def double_weibull(d, alpha, k1, k2, d80):
-    d1 = d80 * 0.6
-    d2 = d80 * 1.4
-    return 100.0 * (alpha*(1 - np.exp(-(d/d1)**k1)) 
-+ (1-alpha)*(1 - np.exp(-(d/d2)**k2)))
-
-def objective_FO(model_func, params, d, y_exp):
-    y_pred = model_func(d, *params)
-    mask = ~np.isnan(y_exp)
-    err = np.sum((y_exp[mask] - y_pred[mask])**2)
-    return err
-
 # ---------- PÁGINA 5: Selección del modelo ----------
 def page_5():
     st.title("SELECCIÓN DEL MODELO")
-    st.markdown("Se introducirán y ajustarán los modelos: GGS, RRSB y Doble Weibull.
-Se estiman parámetros minimizando la función objetivo (SSE).")
+    st.markdown("Se introducirán y ajustarán los modelos: GGS, RRSB y Doble Weibull. Se estiman parámetros minimizando la función objetivo (SSE).")
     results = st.session_state.results_table.copy()
     if results.empty:
         st.error("No hay datos procesados.")
@@ -722,6 +698,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
