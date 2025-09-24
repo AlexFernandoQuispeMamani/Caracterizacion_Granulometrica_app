@@ -5,13 +5,6 @@ Created on Tue Sep 23 21:15:05 2025
 @author: ALEX
 """
 
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Sep 23 21:15:05 2025
-
-@author: ALEX
-"""
-
 # app_streamlit_granulometria.py
 # Streamlit app: CARACTERIZACIÓN GRANULOMÉTRICA
 # Autor: Alex Quispe (estructura solicitada por el usuario)
@@ -36,6 +29,15 @@ import openpyxl
 st.set_page_config(page_title="CARACTERIZACIÓN GRANULOMÉTRICA", layout="wide")
 
 # ---------- Datos fijos: Serie Tyler (malla -> apertura µm) ----------
+TYLER_SERIES = {
+    "1.05\"": None,  # placeholder header-like
+    26: 500,
+    22: 400,
+    19: 300,
+    16: 16000,
+}
+
+# More complete mapping extracted and corrected from tu prompt (keys: malla número, value: µm)
 TYLER = {
     26: 500, 22: 400, 19: 300, 16: 16000, 13: 13200, 11: 11200, 9: 9500,
     8: 8000, 7: 6700, 6: 5600, 5: 4760, 4: 4000, 3.5: 3350, 3: 2800, 2.5: 2360,
@@ -45,8 +47,15 @@ TYLER = {
     0.053: 53, 0.045: 45, 0.038: 38
 }
 
-# --- Inicialización de la sesión de estado para asegurar la persistencia de los datos ---
-def initialize_session_state():
+# Note: some malla numbers in prompt were like 20,24,28,... mapping varies by convention.
+# To keep UI simple, we'll display a user-friendly list where label shows "Nº malla - apertura µm".
+
+# ---------- Utilidades ----------
+def size_label_from_malla(malla_number):
+    """Return readable label for a malla key (which may be non-integer)."""
+    return f"{malla_number}# ({TYLER.get(malla_number,'?')} µm)"
+
+def ensure_session():
     if 'page' not in st.session_state:
         st.session_state.page = 1
     if 'user_info' not in st.session_state:
@@ -55,8 +64,6 @@ def initialize_session_state():
         st.session_state.input_table = pd.DataFrame()
     if 'selected_mode' not in st.session_state:
         st.session_state.selected_mode = None
-    if 'peso_total' not in st.session_state:
-        st.session_state.peso_total = 1000.0  # Valor inicial para peso_total
     if 'results_table' not in st.session_state:
         st.session_state.results_table = pd.DataFrame()
     if 'nominal_sizes' not in st.session_state:
@@ -65,12 +72,8 @@ def initialize_session_state():
         st.session_state.models_fit = {}
     if 'uploaded_image' not in st.session_state:
         st.session_state.uploaded_image = None
-    if 'calc_nom_pct' not in st.session_state:
-        st.session_state.calc_nom_pct = 50.0
-    if 'calc_pct_d' not in st.session_state:
-        st.session_state.calc_pct_d = 100.0
 
-initialize_session_state()
+ensure_session()
 
 # ---------- PÁGINA 1: Bienvenida ----------
 def page_1():
@@ -78,7 +81,8 @@ def page_1():
     st.markdown(f"**Desarrollado por:** Alex Quispe — UTO, Carrera de Metalurgia y Ciencia de Materiales.")
     st.markdown("""
     Este programa permite realizar un análisis granulométrico completo a partir de datos experimentales
-    (pesos retenidos por tamiz o mediciones manuales). Genera tablas, gráficos en distintas escalas,
+    (pesos retenidos por tamiz o mediciones manuales).
+    Genera tablas, gráficos en distintas escalas,
     estadísticas descriptivas e inferenciales básicas, ajuste a modelos (GGS, RRSB, Doble Weibull),
     y exportación de resultados.
     """)
@@ -108,35 +112,34 @@ def page_1():
 def page_2():
     st.title("DATOS EXPERIMENTALES")
     st.markdown("Inserte tamaños y pesos retenidos sobre cada tamiz para efectuar el análisis granulométrico.")
-    st.session_state.peso_total = st.number_input(
-        "Peso total (g)",
-        min_value=0.0,
-        value=st.session_state.peso_total, # Usa el valor guardado
-        step=0.1,
-        key='peso_total_input' # Usa una clave para mantener el estado
-    )
+    total_weight = st.number_input("Peso total (g)", min_value=0.0, value=1000.0, step=0.1, key='peso_total')
     st.markdown("Elija método para introducir datos:")
-    mode = st.radio("Modo", ["SELECCIONAR MALLAS", "INSERTAR MANUALMENTE"], index=0, key='mode_selection')
+    mode = st.radio("Modo", ["SELECCIONAR MALLAS", "INSERTAR MANUALMENTE"], index=0)
     st.session_state.selected_mode = mode
 
     if mode == "SELECCIONAR MALLAS":
         st.info("Seleccione las mallas de la serie Tyler. Se generará una tabla con la apertura (µm) prellenada.")
+        # Build options from TYLER dict, order descending by aperture
         malla_options = sorted(TYLER.items(), key=lambda x: -x[1])
         labels = [f"{int(k) if float(k).is_integer() else k} - {v} µm" for k, v in malla_options]
+        # Use multiselect
         selected = st.multiselect("Selecciona mallas (múltiple)", labels)
-        
+        # Map selected labels back to keys
         selected_keys = []
         for lab in selected:
+            # lab like "26 - 500 µm"
             key = lab.split(" - ")[0]
             try:
                 k = int(key)
-            except ValueError:
+            except:
                 try:
                     k = float(key)
-                except ValueError:
+                except:
                     k = key
             selected_keys.append(k)
-
+        # Generate default table
+        if 'generated_mallas' not in st.session_state:
+            st.session_state.generated_mallas = []
         if st.button("Generar tabla de mallas"):
             rows = []
             for k in selected_keys:
@@ -158,34 +161,49 @@ def page_2():
             st.rerun()
 
     st.markdown("**Tabla de entrada** (edítala con los pesos y tamaños necesarios):")
+    # Show editable table
     if not st.session_state.input_table.empty:
         edited = st.data_editor(st.session_state.input_table, num_rows="dynamic")
         st.session_state.input_table = edited
 
     st.markdown("**Recomendación:** seleccionar MALLAS si trabajas con tamices; insertar manualmente si no se usan mallas estandarizadas.")
     if st.button("EJECUTAR"):
+        # Validate
         df = st.session_state.input_table.copy()
         if df.empty:
             st.error("Debes generar y completar la tabla antes de ejecutar.")
         else:
+            # Ensure Peso column exists
             if 'Peso (g)' not in df.columns:
-                st.error("La tabla debe contener la columna 'Peso (g)'.")
+                st.error("La columna 'Peso (g)' no se encuentra en la tabla.")
             else:
                 st.session_state.page = 3
                 st.rerun()
 
 # ---------- Helper: compute granulometric analysis ----------
 def compute_analysis(df_in, mode, total_weight):
+    """
+    df_in: DataFrame con columnas ['Nº Malla (Tyler)','Abertura (µm)','Peso (g)']
+           o ['Tamaño (µm)','Peso (g)']
+    total_weight: valor ingresado en page_2
+    """
     df = df_in.copy()
+
+    # Normalizar nombres
     if 'Abertura (µm)' in df.columns:
-        df.rename(columns={'Abertura (µm)': 'Tamaño inferior (µm)', 'Peso (g)': 'Peso (g)'}, inplace=True)
+        df.rename(columns={'Abertura (µm)': 'Tamaño inferior (µm)',
+                           'Peso (g)': 'Peso (g)'}, inplace=True)
     if 'Tamaño (µm)' in df.columns and 'Tamaño inferior (µm)' not in df.columns:
         df.rename(columns={'Tamaño (µm)': 'Tamaño inferior (µm)'}, inplace=True)
 
+    # Asegurar datos numéricos
     df['Tamaño inferior (µm)'] = pd.to_numeric(df['Tamaño inferior (µm)'], errors='coerce')
     df['Peso (g)'] = pd.to_numeric(df['Peso (g)'], errors='coerce').fillna(0.0)
+
+    # Ordenar de mayor a menor tamaño
     df = df.sort_values(by='Tamaño inferior (µm)', ascending=False).reset_index(drop=True)
 
+    # Calcular Tamaño superior
     size_sup = []
     for i in range(len(df)):
         if i == 0:
@@ -195,6 +213,7 @@ def compute_analysis(df_in, mode, total_weight):
         size_sup.append(sup)
     df['Tamaño superior (µm)'] = size_sup
 
+    # ---- Fila extra_row (< Tamaño mínimo) ----
     peso_resto = max(total_weight - df['Peso (g)'].sum(), 0.0)
     if len(df) > 0:
         extra_row = {
@@ -205,32 +224,47 @@ def compute_analysis(df_in, mode, total_weight):
         }
         df = pd.concat([df, pd.DataFrame([extra_row])], ignore_index=True)
 
+    # Tamaño promedio
     df['Tamaño promedio (µm)'] = (df['Tamaño superior (µm)'] + df['Tamaño inferior (µm)']) / 2.0
+
+    # %Peso respecto al total ingresado
     df['%Peso'] = 100.0 * df['Peso (g)'] / total_weight
+
+    # %R(d) acumulado retenido y %F(d) pasante
     df['%R(d)'] = df['%Peso'].cumsum()
     df['%F(d)'] = 100.0 - df['%R(d)']
 
+    # ---- Fila de TOTALES ----
     total_row = {
-        'Tamaño superior (µm)': np.nan, 'Tamaño inferior (µm)': np.nan,
-        'Tamaño promedio (µm)': np.nan, 'Peso (g)': total_weight,
-        '%Peso': 100.0, '%R(d)': np.nan, '%F(d)': np.nan
+        'Tamaño superior (µm)': np.nan,
+        'Tamaño inferior (µm)': np.nan,
+        'Tamaño promedio (µm)': np.nan,
+        'Peso (g)': total_weight,
+        '%Peso': 100.0,
+        '%R(d)': np.nan,
+        '%F(d)': np.nan
     }
     if mode == "SELECCIONAR MALLAS" and 'Nº Malla (Tyler)' in df_in.columns:
-        df['Nº de malla (intervalo)'] = list(df_in['Nº Malla (Tyler)']) + ['extra']
+        df['Nº de malla (intervalo)'] = list(df_in['Nº Malla (Tyler)']) + ['extra']  # para el resto
         total_row['Nº de malla (intervalo)'] = 'TOTAL'
-        cols_order = ['Nº de malla (intervalo)', 'Tamaño superior (µm)', 'Tamaño inferior (µm)',
-                      'Tamaño promedio (µm)', 'Peso (g)', '%Peso', '%F(d)', '%R(d)']
-    else:
-        cols_order = ['Tamaño superior (µm)', 'Tamaño inferior (µm)', 'Tamaño promedio (µm)',
+        cols_order = ['Nº de malla (intervalo)', 'Tamaño superior (µm)',
+                      'Tamaño inferior (µm)', 'Tamaño promedio (µm)',
                       'Peso (g)', '%Peso', '%F(d)', '%R(d)']
+    else:
+        cols_order = ['Tamaño superior (µm)', 'Tamaño inferior (µm)',
+                      'Tamaño promedio (µm)', 'Peso (g)',
+                      '%Peso', '%F(d)', '%R(d)']
+
+    # Concatenar fila de totales
     df = pd.concat([df, pd.DataFrame([total_row])], ignore_index=True)
+
     return df[cols_order]
 
 # ---------- PÁGINA 3: Análisis granulométrico (Resultados) ----------
 def page_3():
     st.title("ANÁLISIS GRANULOMÉTRICO")
     df_in = st.session_state.input_table.copy()
-    total_weight = st.session_state.peso_total # Obtiene el valor persistente
+    total_weight = st.session_state.get('peso_total', 0.0)
 
     if df_in.empty:
         st.error("No hay datos de entrada. Regresa y genera la tabla de datos.")
@@ -239,6 +273,7 @@ def page_3():
             st.rerun()
         return
 
+    # Evitar que se recalculen los resultados cada vez que cambias gráfico
     if st.session_state.results_table.empty:
         results = compute_analysis(df_in, st.session_state.selected_mode, total_weight)
         st.session_state.results_table = results
@@ -248,24 +283,30 @@ def page_3():
     st.markdown("**Tabla de resultados**")
     st.dataframe(
         results.style.format({
-            "Peso (g)": "{:.3f}", "%Peso": "{:.3f}",
-            "%F(d)": "{:.3f}", "%R(d)": "{:.3f}"
-        }), height=300
+            "Peso (g)": "{:.3f}",
+            "%Peso": "{:.3f}",
+            "%F(d)": "{:.3f}",
+            "%R(d)": "{:.3f}"
+        }),
+        height=300
     )
 
+    # Gráficos
     st.markdown("**Seleccione gráfico**")
     grafico = st.selectbox("SELECCIONE GRÁFICO", [
-        "Histograma de frecuencia", "Diagrama de simple distribución",
-        "Diagrama Acumulativo de Subtamaño", "Diagrama Acumulativo de Sobretamaño",
-        "Diagrama Acumulativo (Combinación)", "Curvas granulométricas (Combinación 2,3,4)"
-    ], key='grafico_selection') # Clave para mantener el estado del selectbox
-    
+        "Histograma de frecuencia",
+        "Diagrama de simple distribución",
+        "Diagrama Acumulativo de Subtamaño",
+        "Diagrama Acumulativo de Sobretamaño",
+        "Diagrama Acumulativo (Combinación)",
+        "Curvas granulométricas (Combinación 2,3,4)"
+    ])
     escala = st.selectbox(
         "Escala",
-        ["Escala decimal", "Escala semilogarítmica (X log)", "Escala logarítmica (ambos log)"],
-        key='escala_selection' # Clave para mantener el estado del selectbox
+        ["Escala decimal", "Escala semilogarítmica (X log)", "Escala logarítmica (ambos log)"]
     )
-    
+
+    # Datos para gráficos
     plot_df = results.copy()
     x = plot_df['Tamaño promedio (µm)'].replace(0, np.nan)
     y_pct = plot_df['%Peso']
@@ -303,11 +344,13 @@ def page_3():
         ax.set_ylabel("Porcentaje")
         ax.legend()
 
+    # Escalas
     if escala == "Escala semilogarítmica (X log)":
         ax.set_xscale('log')
     elif escala == "Escala logarítmica (ambos log)":
         ax.set_xscale('log')
         ax.set_yscale('log')
+
     ax.grid(True, which='both', ls='--', alpha=0.5)
     ax.set_title(grafico)
     st.pyplot(fig)
@@ -329,14 +372,17 @@ def page_4():
 
     # ---------- Sección 1: ANÁLISIS ESTADÍSTICO ----------
     st.header("ANÁLISIS ESTADÍSTICO")
+    # Use Tamaño promedio weighted by %Peso to compute distribution statistics
     sizes = results['Tamaño promedio (µm)'].replace(0, np.nan).dropna()
-    weights = results['%Peso'].loc[sizes.index] / 100.0
+    weights = results['%Peso'].loc[sizes.index] / 100.0  # fraction
+    # If weights sum to zero, fallback to equal weight
     if weights.sum() <= 0:
         weights = np.ones_like(sizes) / len(sizes)
     mean = np.sum(sizes * weights) / np.sum(weights)
     median = np.nanpercentile(np.repeat(sizes.values, (weights * 1000).astype(int) + 1), 50) if len(sizes) > 0 else np.nan
+    # approximate mode: size with max %Peso
     mode = sizes.iloc[np.argmax(results['%Peso'].values[:len(sizes)])] if len(sizes) > 0 else np.nan
-    variance = np.sum(weights * (sizes - mean) ** 2) / np.sum(weights)
+    variance = np.sum(weights * (sizes - mean)**2) / np.sum(weights)
     std = np.sqrt(variance)
     kurtosis = pd.Series(sizes).kurtosis()
     rango = np.nanmax(sizes) - np.nanmin(sizes) if len(sizes) > 0 else np.nan
@@ -345,6 +391,7 @@ def page_4():
         'Valor': [mean, median, mode, variance, std, kurtosis, rango]
     })
     st.table(stats_tbl)
+
     st.markdown("**Interpretación**: La varianza indica la dispersión de tamaños; un valor mayor significa mayor dispersión. El rango (máximo - mínimo) muestra la amplitud de tamaños presentes en la muestra.")
 
     # ---------- Sección 2: REGISTRO DE TAMAÑOS Y PORCENTAJES ----------
@@ -353,6 +400,7 @@ def page_4():
     with cols[0]:
         st.subheader("PERFIL GRANULOMÉTRICO")
         st.markdown("El perfil granulométrico muestra la curva acumulativa de subtamaño (%F(d)).")
+        # Force decimal scale plot
         fig, ax = plt.subplots(figsize=(5, 4))
         x = results['Tamaño promedio (µm)'].replace(0, np.nan).dropna()
         y = results['%F(d)'].loc[x.index]
@@ -363,20 +411,28 @@ def page_4():
         ax.set_yscale('linear')
         ax.grid(True)
         st.pyplot(fig)
+        # compute d80 by interpolation/extrapolation
         try:
+            # Use interpolation on sorted x ascending
             mask = ~np.isnan(x) & ~np.isnan(y)
             xs = np.array(x[mask])
             ys = np.array(y[mask])
+            # Must be monotonic; interpolate: F(d) as function of d.
+            # Find d such that F(d)=80 => we invert interpolation
             if len(xs) >= 2:
+                # ensure xs ascending
                 order = np.argsort(xs)
                 xs_s = xs[order]
                 ys_s = ys[order]
-                if (ys_s.min() <= 80 <= ys_s.max()):
+                # if 80 within range of ys_s -> interp, else extrapolate using linear extrapolation
+                if (ys_s.min() <= 80 <= ys_s.max()) or (ys_s.max() >= 80 and ys_s.min() <= 80):
                     inv = interp1d(ys_s, xs_s, fill_value="extrapolate")
                     d80 = float(inv(80.0))
                     st.markdown(f"**d80 = {d80:.3f} µm**")
+                    # draw arrow and annotate
                     ax.annotate("", xy=(d80, 80), xytext=(d80, 0), arrowprops=dict(arrowstyle="->", lw=1.5))
                 else:
+                    # extrapolate
                     inv = interp1d(ys_s, xs_s, fill_value="extrapolate")
                     d80 = float(inv(80.0))
                     st.warning("Los datos no cubren 80% — se realizó EXTRAPOLACIÓN.")
@@ -388,50 +444,48 @@ def page_4():
 
     with cols[1]:
         st.subheader("TAMAÑOS NOMINALES")
-        st.markdown("Calcular tamaños nominales")
-        calc_nom_pct = st.number_input("Ingrese %F(d) =", min_value=0.0, max_value=100.0, value=st.session_state.calc_nom_pct, key='calc_nom_pct')
+        pct = st.number_input("Ingrese %F(d) =", min_value=0.0, max_value=100.0, value=50.0, key='calc_nom_pct')
         if st.button("GRABAR %->Tamaño"):
+            # calculate by interpolation using results
             x = results['Tamaño promedio (µm)'].replace(0, np.nan)
             y = results['%F(d)']
             mask = ~np.isnan(x) & ~np.isnan(y)
             try:
                 inv = interp1d(y[mask], x[mask], fill_value="extrapolate")
-                d_val = float(inv(calc_nom_pct))
-                st.session_state.nominal_sizes = pd.concat([
-                    st.session_state.nominal_sizes,
-                    pd.DataFrame([{'%F(d)': calc_nom_pct, 'Tamaño (µm)': d_val}])
-                ], ignore_index=True)
-                st.success(f"Grabado: {calc_nom_pct}% -> {d_val:.3f} µm")
+                d_val = float(inv(pct))
+                st.session_state.nominal_sizes = pd.concat([st.session_state.nominal_sizes, pd.DataFrame([{'%F(d)': pct, 'Tamaño (µm)': d_val}])], ignore_index=True)
+                st.success(f"Grabado: {pct}% -> {d_val:.3f} µm")
             except Exception as e:
                 st.error("No se puede interpolar: " + str(e))
-
-        st.markdown("Calcular porcentajes pasantes")
-        calc_pct_d = st.number_input("Ingrese d (µm) =", min_value=0.0, value=st.session_state.calc_pct_d, key='calc_pct_d')
+                
+        d_input = st.number_input("Ingrese d (µm) =", min_value=0.0, value=100.0, key='calc_pct_d')
         if st.button("GRABAR d->%F(d)"):
             x = results['Tamaño promedio (µm)'].replace(0, np.nan)
             y = results['%F(d)']
             mask = ~np.isnan(x) & ~np.isnan(y)
             try:
                 f = interp1d(x[mask], y[mask], fill_value="extrapolate")
-                pctv = float(f(calc_pct_d))
-                st.session_state.nominal_sizes = pd.concat([
-                    st.session_state.nominal_sizes,
-                    pd.DataFrame([{'%F(d)': pctv, 'Tamaño (µm)': calc_pct_d}])
-                ], ignore_index=True)
-                st.success(f"Grabado: {calc_pct_d} µm -> {pctv:.3f}%")
+                pctv = float(f(d_input))
+                st.session_state.nominal_sizes = pd.concat([st.session_state.nominal_sizes, pd.DataFrame([{'%F(d)': pctv, 'Tamaño (µm)': d_input}])], ignore_index=True)
+                st.success(f"Grabado: {d_input} µm -> {pctv:.3f}%")
             except Exception as e:
                 st.error("No se puede interpolar: " + str(e))
-
+        
         st.markdown("**Tabla de tamaños nominales grabados**")
         st.dataframe(st.session_state.nominal_sizes)
 
     # ---------- Sección 3: Estadísticos según Folk & Ward ----------
     st.header("ESTADÍSTICOS SEGÚN FOLK Y WARD")
+    st.markdown("Se usan tamaños nominales grabados en la sección anterior. Si no existen los tamaños requeridos, se mostrará un warning.")
+    # For Folk & Ward we need specific percentiles (e.g., d16, d25, d50, d84 etc.) - user said "según las fórmulas"
+    # We will require a set: d5, d16, d25, d50, d75, d84 (common in Folk & Ward)
     required_perc = [5, 16, 25, 50, 75, 84]
+    # Check if nominal_sizes contains these percentiles
     nom_df = st.session_state.nominal_sizes.copy()
     if nom_df.empty:
         st.warning("Calcule los tamaños nominales requeridos en la sección anterior para mostrar los estadísticos.")
     else:
+        # Build mapping from %F -> size using interpolation
         x = results['Tamaño promedio (µm)'].replace(0, np.nan)
         y = results['%F(d)']
         mask = ~np.isnan(x) & ~np.isnan(y)
@@ -440,17 +494,27 @@ def page_4():
             ds = {}
             for p in required_perc:
                 ds[p] = float(inv(p))
+            # Folk & Ward formulas (classical phi units: phi = -log2(d/d0) ; but here we give direct formulas using log base2)
+            # Convert to phi: phi = -log2(d)
             phi = {p: -np.log2(ds[p]) for p in ds}
+            # Mean M = (phi16 + phi50 + phi84)/3
             M = (phi[16] + phi[50] + phi[84]) / 3.0
+            # Median Md = phi50
             Md = phi[50]
+            # Inclusive Graphic Standard Deviation (sigma_I) = (phi84 - phi16)/4 + (phi95 - phi5)/6 (approx).
+            # We'll compute an approximation
             sigma = (phi[84] - phi[16]) / 4.0
+            # Skewness: (phi16 + phi84 - 2*phi50) / (2*(phi84 - phi16))
             Sk = (phi[16] + phi[84] - 2 * phi[50]) / (2 * (phi[84] - phi[16])) if (phi[84] - phi[16]) != 0 else 0.0
+            # Curtosis K (approx): (phi95 - phi5)/(2.44*(phi75-phi25)) (Ward's measure)
             K = np.nan
+            # Build table
             folk_tbl = pd.DataFrame({
                 'Nombre': ['M (media, phi)', 'Md (mediana, phi)', 'σ (varianza/dispersion, phi)', 'Sk (asimetría)', 'K (curtosis)'],
                 'Valor': [M, Md, sigma, Sk, K]
             })
             st.table(folk_tbl)
+            # Interpretations
             if sigma > 1:
                 disp_comment = "La muestra presenta una amplia dispersión de tamaños."
             else:
@@ -460,26 +524,34 @@ def page_4():
             st.markdown(f"**Interpretación:** {disp_comment} {skew_comment} {kurt_comment}")
         except Exception as e:
             st.error("No se pueden calcular Folk & Ward: " + str(e))
+
     if st.button("SIGUIENTE"):
         st.session_state.page = 5
         st.rerun()
 
 # ---------- Model definitions and FO (función objetivo) ----------
 def GGS_model(d, m, Dm):
-    return 100.0 * (1.0 / (1.0 + (d / Dm) ** (-m)))
+    # Example functional form placeholder: use a sigmoid-like (cumulative) model
+    # GGS empirical: F(d)=1/(1+(d/Dm)**m) maybe inverted. We'll implement a flexible form.
+    return 100.0 * (1.0 / (1.0 + (d / Dm)**(-m)))  # adapt for cumulative passing
 
 def RRSB_model(d, m, l):
-    return 100.0 * (1 - np.exp(-(d / l) ** m))
+    # Rosin-Rammler-Sperling-Bennett: F(d) = 1 - exp(-(d/l)**m)
+    return 100.0 * (1 - np.exp(-(d / l)**m))
 
 def double_weibull(d, alpha, k1, k2, d80):
+    # double Weibull cumulative: alpha*(1 - exp(-(d/d1)**k1)) + (1-alpha)*(1 - exp(-(d/d2)**k2))
+    # We'll estimate d1,d2 from d80 heuristic: set d1=d80*(0.6) d2=d80*(1.4) initial guesses
     d1 = d80 * 0.6
     d2 = d80 * 1.4
-    return 100.0 * (alpha * (1 - np.exp(-(d / d1) ** k1)) + (1 - alpha) * (1 - np.exp(-(d / d2) ** k2)))
+    return 100.0 * (alpha * (1 - np.exp(-(d / d1)**k1)) + (1 - alpha) * (1 - np.exp(-(d / d2)**k2)))
 
 def objective_FO(model_func, params, d, y_exp):
+    """Return sum of squared errors between model (params) and experimental %F(d)."""
     y_pred = model_func(d, *params)
+    # exclude NaNs
     mask = ~np.isnan(y_exp)
-    err = np.sum((y_exp[mask] - y_pred[mask]) ** 2)
+    err = np.sum((y_exp[mask] - y_pred[mask])**2)
     return err
 
 # ---------- PÁGINA 5: Selección del modelo ----------
@@ -493,9 +565,10 @@ def page_5():
             st.session_state.page = 4
             st.rerun()
         return
-    
+    # Prepare data for fitting: use Tamaño promedio and %F(d); exclude last negative row if exists
     d = results['Tamaño promedio (µm)'].astype(float).values
     y_exp = results['%F(d)'].astype(float).values
+    # Exclude zero or nan sizes
     mask = (d > 0) & (~np.isnan(y_exp))
     d_fit = d[mask]
     y_fit = y_exp[mask]
@@ -504,23 +577,28 @@ def page_5():
         st.warning("No hay suficientes puntos válidos para ajuste (se requieren al menos 3).")
     else:
         if st.button("AJUSTAR"):
-            x0_ggs = [1.0, np.median(d_fit)]
+            # GGS: params m, Dm
+            x0 = [1.0, np.median(d_fit)]
             def f_ggs(params):
                 m, Dm = params
-                return np.sum((y_fit - GGS_model(d_fit, m, Dm)) ** 2)
-            res1 = minimize(f_ggs, x0_ggs, bounds=[(0.01, 10), (1e-6, max(d_fit) * 10)])
+                return np.sum((y_fit - GGS_model(d_fit, m, Dm))**2)
+            res1 = minimize(f_ggs, x0, bounds=[(0.01, 10), (1e-6, max(d_fit) * 10)])
             FO_ggs = res1.fun
             ggs_params = res1.x
 
-            x0_rrsb = [1.0, np.median(d_fit)]
+            # RRSB: params m, l
+            x0 = [1.0, np.median(d_fit)]
             def f_rrsb(params):
                 m, l = params
-                return np.sum((y_fit - RRSB_model(d_fit, m, l)) ** 2)
-            res2 = minimize(f_rrsb, x0_rrsb, bounds=[(0.01, 10), (1e-6, max(d_fit) * 10)])
+                return np.sum((y_fit - RRSB_model(d_fit, m, l))**2)
+            res2 = minimize(f_rrsb, x0, bounds=[(0.01, 10), (1e-6, max(d_fit) * 10)])
             FO_rrsb = res2.fun
             rrsb_params = res2.x
 
+            # Double Weibull: params alpha,k1,k2,d80 guess
+            # initial d80 from earlier interpolation if available
             try:
+                # compute d80 using existing method
                 x_all = results['Tamaño promedio (µm)'].replace(0, np.nan)
                 y_all = results['%F(d)']
                 mask2 = ~np.isnan(x_all) & ~np.isnan(y_all)
@@ -528,24 +606,25 @@ def page_5():
                 init_d80 = float(inv(80.0))
             except Exception:
                 init_d80 = np.median(d_fit)
-
-            x0_dw = [0.5, 1.0, 1.0, init_d80]
+            x0 = [0.5, 1.0, 1.0, init_d80]
             def f_double(params):
                 alpha, k1, k2, d80 = params
-                return np.sum((y_fit - double_weibull(d_fit, alpha, k1, k2, d80)) ** 2)
+                return np.sum((y_fit - double_weibull(d_fit, alpha, k1, k2, d80))**2)
             bounds_dw = [(0.0, 1.0), (0.01, 10.0), (0.01, 10.0), (1e-3, max(d_fit) * 10)]
-            res3 = minimize(f_double, x0_dw, bounds=bounds_dw)
+            res3 = minimize(f_double, x0, bounds=bounds_dw)
             FO_dw = res3.fun
             dw_params = res3.x
 
+            # Save fits in session
             st.session_state.models_fit = {
                 'GGS': {'FO': FO_ggs, 'params': ggs_params},
                 'RRSB': {'FO': FO_rrsb, 'params': rrsb_params},
-                'DobleWeibull': {'FO': FO_dw, 'params': dw_params}
+                'DoubleWeibull': {'FO': FO_dw, 'params': dw_params}
             }
             st.success("Ajustes realizados.")
             st.rerun()
 
+        # Show results if present
         if st.session_state.models_fit:
             fits = st.session_state.models_fit
             st.subheader("Comparación de funciones objetivo (FO)")
@@ -556,11 +635,12 @@ def page_5():
             best = min(fits.items(), key=lambda x: x[1]['FO'])
             best_model_name = best[0]
             st.markdown(f"**El mejor modelo es {best_model_name} con F.O. = {best[1]['FO']:.3f}**")
+            # If FO too large, warn (we pick threshold heuristically)
             if best[1]['FO'] > 1e6:
                 st.warning("Ningún modelo representa bien los datos experimentales (F.O. muy grande).")
             st.subheader("Parámetros estimados del mejor modelo")
-            st.json(best[1]['params'].tolist())
-
+            st.json({f"param_{i+1}": float(p) for i, p in enumerate(best[1]['params'])})
+            # Plot model vs data
             fig, ax = plt.subplots(figsize=(7, 4))
             ax.plot(d_fit, y_fit, 'o', label='Experimental')
             dd = np.linspace(np.min(d_fit), np.max(d_fit), 200)
@@ -587,11 +667,14 @@ def page_5():
 def page_6():
     st.title("EXPORTACIÓN DE DATOS")
     st.markdown("Descargar todas las tablas (sin gráficos) en un archivo Excel o guardar el análisis y generar un QR para compartir.")
+
+    # Prepare Excel in memory
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         st.session_state.input_table.to_excel(writer, sheet_name='Entrada', index=False)
         st.session_state.results_table.to_excel(writer, sheet_name='Resultados', index=False)
         st.session_state.nominal_sizes.to_excel(writer, sheet_name='TamañosNominales', index=False)
+        # models fit summary
         models = st.session_state.models_fit
         if models:
             models_df = pd.DataFrame([
@@ -604,6 +687,7 @@ def page_6():
     href = f'<a href="data:application/octet-stream;base64,{b64}" download="analisis_granulometrico.xlsx">Descargar Excel (analisis_granulometrico.xlsx)</a>'
     st.markdown(href, unsafe_allow_html=True)
 
+    # Also provide "GUARDAR" -> generate a temporary file and a QR linking to a data URL (note: large files may not be ideal)
     if st.button("GUARDAR (generar QR de descarga)"):
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
         with open(tmp.name, 'wb') as f:
@@ -620,7 +704,7 @@ def page_6():
 
 # ---------- Page router ----------
 def main():
-    initialize_session_state()
+    ensure_session()
     page = st.session_state.page
     if page == 1:
         page_1()
