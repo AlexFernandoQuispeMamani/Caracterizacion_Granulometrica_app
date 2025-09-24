@@ -192,9 +192,9 @@ def page_2():
         if st.button("Generar tabla de mallas"):
             rows = []
             for k in selected_keys:
-                rows.append({'Nº Malla (Tyler)': str(k)+'#', 'Abertura (µm)': TYLER.get(k, np.nan), 'Peso (g)': np.nan})
-            df = pd.DataFrame(rows)
-            st.session_state.input_table = df
+                rows.append({'Nº Malla (Tyler)': str(k)+'#', 'Abertura (µm)': abertura_valor, 'Peso (g)': np.nan})
+        df = pd.DataFrame(rows)
+        st.session_state.input_table = df
             st.session_state.generated_mallas = selected_keys
             st.rerun()
 
@@ -729,6 +729,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
