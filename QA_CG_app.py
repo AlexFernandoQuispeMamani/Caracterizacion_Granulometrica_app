@@ -76,9 +76,6 @@ TYLER = {
     '400': 38
 }
 
-print(f"Para la primera malla se debería visualizar: '{list(TYLER.keys())[0]}' ({TYLER[list(TYLER.keys())[0]]} µm)")
-print(f"Para la última malla se debería visualizar: '{list(TYLER.keys())[-1]}' ({TYLER[list(TYLER.keys())[-1]]} µm)")
-
 # ---------- NUEVA FUNCIÓN DE ESTILO ----------
 def aplicar_estilo_granulometrico(ax):
     """Aplica un estilo consistente a los gráficos granulométricos."""
@@ -733,6 +730,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
