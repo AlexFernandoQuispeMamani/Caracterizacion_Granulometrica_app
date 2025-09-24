@@ -136,23 +136,21 @@ def page_2():
         # Use multiselect
         selected = st.multiselect("Selecciona mallas (múltiple)", labels)
         # Map selected labels back to keys
-    
-    selected_keys = []
+        selected_keys = []
         for lab in selected:
             # lab like "26 - 500 µm"
             key = lab.split(" - ")[0]
             try:
                 k = int(key)
             except:
-       
-          try:
+                try:
                     k = float(key)
                 except:
                     k = key
             selected_keys.append(k)
         # Generate default table
         
- if 'generated_mallas' not in st.session_state:
+        if 'generated_mallas' not in st.session_state:
             st.session_state.generated_mallas = []
         if st.button("Generar tabla de mallas"):
             rows = []
@@ -804,6 +802,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
