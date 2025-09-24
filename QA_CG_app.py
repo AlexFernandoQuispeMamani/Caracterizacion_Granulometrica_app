@@ -121,6 +121,19 @@ def ensure_session():
         st.session_state.models_fit = {}
     if 'uploaded_image' not in st.session_state:
         st.session_state.uploaded_image = None
+    if 'peso_total' not in st.session_state:
+        st.session_state.peso_total = 1000.0
+
+# Estas funciones son esenciales para la página 5
+def GGS_model(d, m, Dm):
+    return 100 * (1 - np.exp(-(d / Dm)**m))
+def RRSB_model(d, m, l):
+    return 100 * (1 - np.exp(-(d / l)**m))
+def double_weibull(d, alpha, k1, k2, d80):
+    p1 = 100 * (1 - np.exp(-(d / k1)**alpha))
+    p2 = 100 * (1 - np.exp(-(d / k2)**alpha))
+    return p1 * d80 + p2 * (1-d80) # Simplified, check formula
+
 
 ensure_session()
 
@@ -162,7 +175,7 @@ value=st.session_state.user_info.get('correo',''))
 def page_2():
     st.title("DATOS EXPERIMENTALES")
     st.markdown("Inserte tamaños y pesos retenidos sobre cada tamiz para efectuar el análisis granulométrico.")
-    total_weight = st.number_input("Peso total (g)", min_value=0.0, value=1000.0, step=0.1, key='peso_total')
+    total_weight = st.number_input("Peso total (g)", min_value=0.0, value=st.session_state.get('peso_total', 1000.0), step=0.1, key='peso_total')
     st.markdown("Elija método para introducir datos:")
     mode = st.radio("Modo", ["SELECCIONAR MALLAS", "INSERTAR MANUALMENTE"], index=0)
     st.session_state.selected_mode = mode
@@ -219,27 +232,26 @@ def page_2():
 
     st.markdown("**Recomendación:** seleccionar MALLAS si trabajas con tamices; insertar manualmente si no se usan mallas estandarizadas.")
 
-    if st.button("EJECUTAR"):
-        # Validate
-        df = st.session_state.input_table.copy()
-        if df.empty:
-            st.error("Debes generar y completar la tabla antes de ejecutar.")
-        else:
-            # Ensure Peso column exists
-            if 'Peso (g)' not in df.columns and 'Peso (g)' in df.columns:
-                pass
-            st.session_state.page = 3
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("EJECUTAR"):
+            # Validate
+            df = st.session_state.input_table.copy()
+            if df.empty:
+                st.error("Debes generar y completar la tabla antes de ejecutar.")
+            else:
+                st.session_state.page = 3
+                st.rerun()
+    with col2:
+        if st.button("ANTERIOR", key="btn_anterior_p2"):
+            st.session_state.page = 1
             st.rerun()
-
-if st.button("ANTERIOR", key="btn_anterior_p2"):
-    st.session_state.page = 1
-    st.rerun()
     
 # ---------- Helper: compute granulometric analysis ----------
 def compute_analysis(df_in, mode, total_weight):
     """
     df_in: DataFrame con columnas ['Nº Malla (Tyler)','Abertura (µm)','Peso (g)']
-           o ['Tamaño (µm)','Peso (g)']
+            o ['Tamaño (µm)','Peso (g)']
     total_weight: valor ingresado en page_2
     """
     df = df_in.copy()
@@ -323,13 +335,13 @@ def page_3():
 
     if df_in.empty:
         st.error("No hay datos de entrada. Regresa y genera la tabla de datos.")
-        if st.button("Regresar"):
+        if st.button("Regresar", key="btn_regresar_p3"):
             st.session_state.page = 2
             st.rerun()
         return
 
     # Evitar que se recalculen los resultados cada vez que cambias gráfico
-    if st.session_state.results_table.empty:
+    if st.session_state.results_table.empty or st.session_state.results_table.shape != compute_analysis(df_in, st.session_state.selected_mode, total_weight).shape:
         results = compute_analysis(df_in, st.session_state.selected_mode, total_weight)
         st.session_state.results_table = results
     else:
@@ -412,17 +424,15 @@ def page_3():
     ax.set_title(grafico)
     st.pyplot(fig)
 
-col1, col2 = st.columns(2)
-
-with col1:
-    if st.button("ANTERIOR", key="btn_anterior_p3"):
-        st.session_state.page = 2
-        st.rerun()
-
-with col2:
-    if st.button("SIGUIENTE", key="btn_siguiente_p3"):
-        st.session_state.page = 4
-        st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("ANTERIOR", key="btn_anterior_p3"):
+            st.session_state.page = 2
+            st.rerun()
+    with col2:
+        if st.button("SIGUIENTE", key="btn_siguiente_p3"):
+            st.session_state.page = 4
+            st.rerun()
         
 # ---------- PÁGINA 4: Análisis de datos ----------
 def page_4():
@@ -430,7 +440,7 @@ def page_4():
     results = st.session_state.results_table.copy()
     if results.empty:
         st.error("No hay resultados calculados.")
-        if st.button("Regresar"):
+        if st.button("Regresar", key="btn_regresar_p4"):
             st.session_state.page = 3
             st.rerun()
         return
@@ -508,30 +518,33 @@ variance, std, kurtosis, rango]
 
     with cols[1]:
         st.subheader("TAMAÑOS NOMINALES")
-        if st.button("CALCULAR TAMAÑOS NOMINALES"):
+        
+        with st.expander("Calcular Tamaño a partir de %F(d)"):
             pct = st.number_input("Ingrese %F(d) =", min_value=0.0, max_value=100.0, value=50.0, key='calc_nom_pct')
-            if st.button("GRABAR %->Tamaño", key='grabar_nom'):
+            if st.button("GRABAR % -> Tamaño", key='grabar_nom'):
                 x = results['Tamaño promedio (µm)'].replace(0, np.nan)
                 y = results['%F(d)']
                 mask = ~np.isnan(x) & ~np.isnan(y)
                 try:
                     inv = interp1d(y[mask], x[mask], fill_value="extrapolate")
                     d_val = float(inv(pct))
-                    st.session_state.nominal_sizes = st.session_state.nominal_sizes.append({'%F(d)':pct,'Tamaño (µm)':d_val}, ignore_index=True)
+                    new_row = pd.DataFrame([{'%F(d)':pct, 'Tamaño (µm)':d_val}])
+                    st.session_state.nominal_sizes = pd.concat([st.session_state.nominal_sizes, new_row], ignore_index=True)
                     st.success(f"Grabado: {pct}% -> {d_val:.3f} µm")
                 except Exception as e:
                     st.error("No se puede interpolar: " + str(e))
 
-        if st.button("CALCULAR PORCENTAJES PASANTES"):
+        with st.expander("Calcular %F(d) a partir de Tamaño"):
             d_input = st.number_input("Ingrese d (µm) =", min_value=0.0, value=100.0, key='calc_pct_d')
-            if st.button("GRABAR d->%F(d)", key='grabar_pct'):
+            if st.button("GRABAR d -> %F(d)", key='grabar_pct'):
                 x = results['Tamaño promedio (µm)'].replace(0, np.nan)
                 y = results['%F(d)']
                 mask = ~np.isnan(x) & ~np.isnan(y)
                 try:
                     f = interp1d(x[mask], y[mask], fill_value="extrapolate")
                     pctv = float(f(d_input))
-                    st.session_state.nominal_sizes = st.session_state.nominal_sizes.append({'%F(d)':pctv,'Tamaño (µm)':d_input}, ignore_index=True)
+                    new_row = pd.DataFrame([{'%F(d)':pctv, 'Tamaño (µm)':d_input}])
+                    st.session_state.nominal_sizes = pd.concat([st.session_state.nominal_sizes, new_row], ignore_index=True)
                     st.success(f"Grabado: {d_input} µm -> {pctv:.3f}%")
                 except Exception as e:
                     st.error("No se puede interpolar: " + str(e))
@@ -576,12 +589,15 @@ variance, std, kurtosis, rango]
         except Exception as e:
             st.error("No se pueden calcular Folk & Ward: " + str(e))
 
-    if st.button("ANTERIOR", key="btn_anterior_p4"):
-        st.session_state.page = 3
-        st.rerun()
-    if st.button("SIGUIENTE", key="btn_siguiente_p4"):
-        st.session_state.page = 5
-        st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("ANTERIOR", key="btn_anterior_p4"):
+            st.session_state.page = 3
+            st.rerun()
+    with col2:
+        if st.button("SIGUIENTE", key="btn_siguiente_p4"):
+            st.session_state.page = 5
+            st.rerun()
 
 # ---------- PÁGINA 5: Selección del modelo ----------
 def page_5():
@@ -590,7 +606,7 @@ def page_5():
     results = st.session_state.results_table.copy()
     if results.empty:
         st.error("No hay datos procesados.")
-        if st.button("Regresar"):
+        if st.button("Regresar", key="btn_regresar_p5"):
             st.session_state.page = 4
             st.rerun()
         return
@@ -682,12 +698,15 @@ double_weibull(d_fit, alpha, k1, k2, d80))**2)
             ax.grid(True)
             st.pyplot(fig)
 
-    if st.button("ANTERIOR", key="btn_anterior_p5"):
-        st.session_state.page = 4
-        st.rerun()
-    if st.button("SIGUIENTE", key="btn_siguiente_p5"):
-        st.session_state.page = 6
-        st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("ANTERIOR", key="btn_anterior_p5"):
+            st.session_state.page = 4
+            st.rerun()
+    with col2:
+        if st.button("SIGUIENTE", key="btn_siguiente_p5"):
+            st.session_state.page = 6
+            st.rerun()
         
 # ---------- PÁGINA 6: Exportación ----------
 def page_6():
@@ -712,20 +731,20 @@ def page_6():
     href = f'<a href="data:application/octet-stream;base64,{b64}" download="analisis_granulometrico.xlsx">Descargar Excel (analisis_granulometrico.xlsx)</a>'
     st.markdown(href, unsafe_allow_html=True)
 
-    if st.button("GUARDAR (generar QR de descarga)"):
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
-        with open(tmp.name, 'wb') as f:
-            f.write(data)
-        link = f"file://{tmp.name}"
-        download_url = f"data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}"
-        qr = qrcode.make(download_url)
-        st.image(qr)
-        st.markdown("Escanea el QR para descargar el archivo (si tu lector soporta data URLs).")
-        st.success(f"Archivo guardado temporalmente en: {tmp.name}")
-
-    if st.button("VOLVER AL INICIO"):
-        st.session_state.page = 1
-        st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("GUARDAR (generar QR de descarga)", key="btn_qr"):
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+            with open(tmp.name, 'wb') as f:
+                f.write(data)
+            download_url = f"data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}"
+            qr = qrcode.make(download_url)
+            st.image(qr)
+            st.markdown("Escanea el QR para descargar el archivo (si tu lector soporta data URLs).")
+    with col2:
+        if st.button("VOLVER AL INICIO", key="btn_inicio_p6"):
+            st.session_state.page = 1
+            st.rerun()
 
 # ---------- Page router ----------
 def main():
@@ -749,6 +768,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
