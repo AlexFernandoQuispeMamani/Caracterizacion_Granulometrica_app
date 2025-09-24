@@ -282,8 +282,7 @@ def page_3():
             st.rerun()
         return
 
-    # Evitar que se recalcule los resultados cada vez que cambias gráfico
-    # FIX: No need for this if statement. Just recompute every time page 3 is loaded.
+    # FIX: Recalcular la tabla de resultados en cada ejecución de la página 3
     results = compute_analysis(df_in, st.session_state.selected_mode, total_weight)
     st.session_state.results_table = results
 
@@ -765,6 +764,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
