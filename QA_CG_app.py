@@ -799,7 +799,7 @@ def page_5():
 # ---------- PÁGINA 6: Exportación ----------
 def page_6():
     st.title("EXPORTACIÓN DE DATOS")
-    st.markdown("Descargar todas las tablas en un archivo Excel o guardar el análisis y generar un QR para compartir.")
+    st.markdown("Descargar todas las tablas en un archivo Excel o guardar el análisis en el servidor temporal.")
 
     # Construir Excel en memoria
     output = io.BytesIO()
@@ -827,18 +827,17 @@ def page_6():
 
     data = output.getvalue()
 
-    # Descargar Excel
+    # Botón para descargar Excel
     b64 = base64.b64encode(data).decode()
     href = f'<a href="data:application/octet-stream;base64,{b64}" download="analisis_granulometrico.xlsx">📥 Descargar Excel (analisis_granulometrico.xlsx)</a>'
     st.markdown(href, unsafe_allow_html=True)
 
-    # Botón: generar QR (separado de guardar)
-    if st.button("GENERAR QR"):
-        # 👉 Cambia este enlace por el link público de tu app en Streamlit Cloud o GitHub
-        public_url = "https://github.com/tu_usuario/tu_repo"
-        qr_img = qrcode.make(public_url)   # genera imagen PIL directamente
-        st.image(qr_img, caption="Escanea este código QR")
-        st.success("QR generado correctamente.")
+    # Botón para guardar el archivo en disco temporal
+    if st.button("GUARDAR"):
+        tmp_path = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx").name
+        with open(tmp_path, "wb") as f:
+            f.write(data)
+        st.success(f"Archivo guardado temporalmente en el servidor: {tmp_path}")
 
     if st.button("VOLVER AL INICIO"):
         st.session_state.page = 1
@@ -863,6 +862,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
