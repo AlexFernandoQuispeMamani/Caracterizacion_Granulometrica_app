@@ -119,14 +119,13 @@ def page_2():
     
     # Peso total permanente en session_state
     st.session_state.setdefault('peso_total', 1000.0)
-    peso_total_mod = st.number_input(
-        "Peso total (g)", 
-        min_value=0.0, 
-        value=float(st.session_state.peso_total), 
+    st.number_input(
+        "Peso total (g)",
+        min_value=0.0,
+        value=float(st.session_state.peso_total),
         step=0.1,
-        key='peso_total_input'   
+        key='peso_total'   # clave única y oficial
     )
-    st.session_state.peso_total = float(peso_total_mod)
     
     st.markdown("Elija método para introducir datos:")
     mode = st.radio("Modo", ["SELECCIONAR MALLAS", "INSERTAR MANUALMENTE"], index=0)
@@ -188,8 +187,9 @@ def page_2():
 
 # ---------- Helper: compute granulometric analysis ----------
 
-def compute_analysis(df_in, mode, total_weight=None):
+def compute_analysis(df_in, mode):
     df = df_in.copy()
+    # Usar SIEMPRE el valor guardado en session_state
     total_weight = float(st.session_state.get('peso_total', 1000.0))
 
     if 'Abertura (µm)' in df.columns:
@@ -266,7 +266,6 @@ def compute_analysis(df_in, mode, total_weight=None):
 def page_3():
     st.title("ANÁLISIS GRANULOMÉTRICO")
     df_in = st.session_state.input_table.copy()
-    total_weight = float(st.session_state.get('peso_total', 1000.0))
 
     if df_in.empty:
         st.error("No hay datos de entrada. Regresa y genera la tabla de datos.")
@@ -275,7 +274,8 @@ def page_3():
             st.rerun()
         return
 
-    results = compute_analysis(df_in, st.session_state.selected_mode, total_weight)
+    # Calcular resultados usando SIEMPRE el peso guardado en session_state
+    results = compute_analysis(df_in, st.session_state.selected_mode)
     st.session_state.results_table = results
 
     st.markdown("**Tabla de resultados**")
@@ -752,6 +752,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
