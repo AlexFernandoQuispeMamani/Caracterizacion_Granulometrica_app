@@ -188,11 +188,9 @@ def page_2():
 
 # ---------- Helper: compute granulometric analysis ----------
 
-def compute_analysis(df_in, mode, total_weight):
-    print("DEBUG >>> total_weight recibido:", total_weight)
-    print("DEBUG >>> session_state.peso_total:", st.session_state.get('peso_total'))
+def compute_analysis(df_in, mode, total_weight=None):
     df = df_in.copy()
-    total_weight = float(st.session_state.get('peso_total', total_weight))
+    total_weight = float(st.session_state.get('peso_total', 1000.0))
 
     if 'Abertura (µm)' in df.columns:
         df.rename(columns={'Abertura (µm)': 'Tamaño inferior (µm)',
@@ -754,6 +752,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
