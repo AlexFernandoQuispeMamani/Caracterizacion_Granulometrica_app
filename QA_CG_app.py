@@ -117,31 +117,29 @@ def page_2():
     st.title("DATOS EXPERIMENTALES")
     st.markdown("Inserte tamaños y pesos retenidos sobre cada tamiz para efectuar el análisis granulométrico.")
     
-    # Store the total weight in session_state, using a key
-    peso_total_mod = st.number_input(
-    "Peso total (g)", 
-    min_value=0.0, 
-    value=st.session_state.peso_total, 
-    step=0.1
+    # Peso total permanente en session_state
+    st.session_state.setdefault('peso_total', 1000.0)
+    st.number_input(
+        "Peso total (g)", 
+        min_value=0.0, 
+        value=float(st.session_state.peso_total), 
+        step=0.1,
+        key='peso_total'  # persistente
     )
-    st.session_state.peso_total = peso_total_mod
+    st.session_state.peso_total = float(st.session_state.peso_total)
     
     st.markdown("Elija método para introducir datos:")
-    
     mode = st.radio("Modo", ["SELECCIONAR MALLAS", "INSERTAR MANUALMENTE"], index=0)
     st.session_state.selected_mode = mode
 
     if mode == "SELECCIONAR MALLAS":
         st.info("Seleccione las mallas de la serie Tyler. Se generará una tabla con la apertura (µm) prellenada.")
-        # Build options from TYLER dict, order descending by aperture
         malla_options = sorted(TYLER.items(), key=lambda x: -x[1])
         labels = [f"{int(k) if float(k).is_integer() else k} - {v} µm" for k,v in malla_options]
-        # Use multiselect
         selected = st.multiselect("Selecciona mallas (múltiple)", labels)
-        # Map selected labels back to keys
+
         selected_keys = []
         for lab in selected:
-            # lab like "26 - 500 µm"
             key = lab.split(" - ")[0]
             try:
                 k = int(key)
@@ -151,7 +149,7 @@ def page_2():
                 except:
                     k = key
             selected_keys.append(k)
-        # Generate default table
+
         if 'generated_mallas' not in st.session_state:
             st.session_state.generated_mallas = []
         if st.button("Generar tabla de mallas"):
@@ -175,50 +173,40 @@ def page_2():
             st.rerun()
 
     st.markdown("**Tabla de entrada** (edítala con los pesos y tamaños necesarios):")
-    # Show editable table
     if not st.session_state.input_table.empty:
         edited = st.data_editor(st.session_state.input_table, num_rows="dynamic")
         st.session_state.input_table = edited
 
-    st.markdown("**Recomendación:** seleccionar MALLAS si trabajas con tamices; insertar manualmente si no se usan mallas estandarizadas.")
     if st.button("EJECUTAR"):
-        # Validate
         df = st.session_state.input_table.copy()
         if df.empty:
             st.error("Debes generar y completar la tabla antes de ejecutar.")
         else:
-            # Ensure Peso column exists
-            if 'Peso (g)' in df.columns:
-                pass
-            st.session_state.results_table = pd.DataFrame() # <<-- FIX: reset results table
+            st.session_state.results_table = pd.DataFrame()
             st.session_state.page = 3
             st.rerun()
 
 # ---------- Helper: compute granulometric analysis ----------
-def compute_analysis(df_in, mode, total_weight):
-    """
-    df_in: DataFrame con columnas ['Nº Malla (Tyler)','Abertura (µm)','Peso (g)']
-           o ['Tamaño (µm)','Peso (g)']
-    mode: "SELECCIONAR MALLAS" o "INSERTAR MANUALMENTE"
-    total_weight: valor ingresado en page_2
-    """
-    df = df_in.copy()
 
-    # Normalizar nombres
+def compute_analysis(df_in, mode, total_weight):
+    df = df_in.copy()
+    try:
+        total_weight = float(total_weight)
+        if total_weight <= 0:
+            total_weight = float(st.session_state.get('peso_total', 1000.0))
+    except:
+        total_weight = float(st.session_state.get('peso_total', 1000.0))
+
     if 'Abertura (µm)' in df.columns:
         df.rename(columns={'Abertura (µm)': 'Tamaño inferior (µm)',
                            'Peso (g)': 'Peso (g)'}, inplace=True)
     if 'Tamaño (µm)' in df.columns and 'Tamaño inferior (µm)' not in df.columns:
         df.rename(columns={'Tamaño (µm)': 'Tamaño inferior (µm)'}, inplace=True)
 
-    # Asegurar datos numéricos
     df['Tamaño inferior (µm)'] = pd.to_numeric(df['Tamaño inferior (µm)'], errors='coerce')
     df['Peso (g)'] = pd.to_numeric(df['Peso (g)'], errors='coerce').fillna(0.0)
-
-    # Ordenar de mayor a menor tamaño
     df = df.sort_values(by='Tamaño inferior (µm)', ascending=False).reset_index(drop=True)
 
-    # Calcular Tamaño superior
     size_sup = []
     for i in range(len(df)):
         if i == 0:
@@ -228,7 +216,6 @@ def compute_analysis(df_in, mode, total_weight):
         size_sup.append(sup)
     df['Tamaño superior (µm)'] = size_sup
 
-    # ---- Fila extra_row (< Tamaño mínimo) ----
     peso_resto = max(total_weight - df['Peso (g)'].sum(), 0.0)
     if len(df) > 0:
         extra_row = {
@@ -239,17 +226,11 @@ def compute_analysis(df_in, mode, total_weight):
         }
         df = pd.concat([df, pd.DataFrame([extra_row])], ignore_index=True)
 
-    # Tamaño promedio
     df['Tamaño promedio (µm)'] = (df['Tamaño superior (µm)'] + df['Tamaño inferior (µm)']) / 2.0
-
-    # %Peso respecto al total ingresado
     df['%Peso'] = 100.0 * df['Peso (g)'] / total_weight
-
-    # %R(d) acumulado retenido y %F(d) pasante
     df['%R(d)'] = df['%Peso'].cumsum()
     df['%F(d)'] = 100.0 - df['%R(d)']
 
-    # ---- Fila de TOTALES ----
     total_row = {
         'Tamaño superior (µm)': np.nan,
         'Tamaño inferior (µm)': np.nan,
@@ -259,9 +240,22 @@ def compute_analysis(df_in, mode, total_weight):
         '%R(d)': np.nan,
         '%F(d)': np.nan
     }
+
     if mode == "SELECCIONAR MALLAS" and 'Nº Malla (Tyler)' in df_in.columns:
-        df['Nº de malla (intervalo)'] = list(df_in['Nº Malla (Tyler)']) + ['extra']  # para el resto
-        total_row['Nº de malla (intervalo)'] = 'TOTAL'
+        raw = list(df_in['Nº Malla (Tyler)'])
+        intervalos = []
+        for i, label in enumerate(raw):
+            if i == 0:
+                intervalos.append(f"{label}")
+            else:
+                prev = str(raw[i-1]).strip()
+                cur = str(label).strip()
+                intervalos.append(f"-{prev}+{cur}")
+        if len(raw) > 0:
+            last = str(raw[-1]).strip()
+            intervalos.append(f"-{last}")
+        df['Nº de malla (intervalo)'] = intervalos
+        total_row['Nº de malla (intervalo)'] = 'Total'
         cols_order = ['Nº de malla (intervalo)', 'Tamaño superior (µm)',
                       'Tamaño inferior (µm)', 'Tamaño promedio (µm)',
                       'Peso (g)', '%Peso', '%F(d)', '%R(d)']
@@ -270,16 +264,14 @@ def compute_analysis(df_in, mode, total_weight):
                       'Tamaño promedio (µm)', 'Peso (g)',
                       '%Peso', '%F(d)', '%R(d)']
 
-    # Concatenar fila de totales
     df = pd.concat([df, pd.DataFrame([total_row])], ignore_index=True)
-
     return df[cols_order]
 
 # ---------- PÁGINA 3: Análisis granulométrico (Resultados) ----------
 def page_3():
     st.title("ANÁLISIS GRANULOMÉTRICO")
     df_in = st.session_state.input_table.copy()
-    total_weight = st.session_state.get('peso_total', 0.0)
+    total_weight = float(st.session_state.get('peso_total', 1000.0))
 
     if df_in.empty:
         st.error("No hay datos de entrada. Regresa y genera la tabla de datos.")
@@ -288,7 +280,6 @@ def page_3():
             st.rerun()
         return
 
-    # FIX: Recalcular la tabla de resultados en cada ejecución de la página 3
     results = compute_analysis(df_in, st.session_state.selected_mode, total_weight)
     st.session_state.results_table = results
 
@@ -303,7 +294,6 @@ def page_3():
         height=300
     )
 
-    # Gráficos
     st.markdown("**Seleccione gráfico**")
     grafico = st.selectbox("SELECCIONE GRÁFICO", [
         "Histograma de frecuencia",
@@ -318,48 +308,45 @@ def page_3():
         ["Escala decimal", "Escala semilogarítmica (X log)", "Escala logarítmica (ambos log)"]
     )
 
-    # Datos para gráficos
     plot_df = results.copy()
-    x = plot_df['Tamaño promedio (µm)'].replace(0, np.nan)
+    x = plot_df['Tamaño inferior (µm)'].replace(0, np.nan)
     y_pct = plot_df['%Peso']
     yf = plot_df['%F(d)']
     yr = plot_df['%R(d)']
 
     fig, ax = plt.subplots(figsize=(8, 4))
     if grafico == "Histograma de frecuencia":
-        ax.bar(x, y_pct, width=np.nanmax(x) / len(x) if len(x) > 0 else 1)
+        ax.bar(x, y_pct, width=np.nanmax(x)/len(x) if len(x) > 0 else 1, color='black', alpha=0.7)
         ax.set_xlabel("Tamaño (µm)")
         ax.set_ylabel("%Peso")
     elif grafico == "Diagrama de simple distribución":
-        ax.plot(x, y_pct, marker='o')
+        ax.plot(x, y_pct, marker='o', markersize=4, color='black', linewidth=1)
         ax.set_xlabel("Tamaño (µm)")
         ax.set_ylabel("%Peso")
     elif grafico == "Diagrama Acumulativo de Subtamaño":
-        ax.plot(x, yf, marker='o')
+        ax.plot(x, yf, marker='o', markersize=4, color='black', linewidth=1)
         ax.set_xlabel("Tamaño (µm)")
         ax.set_ylabel("%F(d)")
     elif grafico == "Diagrama Acumulativo de Sobretamaño":
-        ax.plot(x, yr, marker='o')
+        ax.plot(x, yr, marker='x', markersize=4, color='black', linewidth=1)
         ax.set_xlabel("Tamaño (µm)")
         ax.set_ylabel("%R(d)")
     elif grafico == "Diagrama Acumulativo (Combinación)":
-        ax.plot(x, yf, label='%F(d)', marker='o')
-        ax.plot(x, yr, label='%R(d)', marker='x')
+        ax.plot(x, yf, label='%F(d)', marker='o', markersize=4, color='black', linewidth=1)
+        ax.plot(x, yr, label='%R(d)', marker='x', markersize=4, color='black', linewidth=1)
         ax.set_xlabel("Tamaño (µm)")
         ax.set_ylabel("Porcentaje")
         ax.legend()
-    else:  # Curvas granulométricas (2,3,4)
-        ax.plot(x, y_pct, label='%Peso', marker='s')
-        ax.plot(x, yf, label='%F(d)', marker='o')
-        ax.plot(x, yr, label='%R(d)', marker='x')
+    else:
+        ax.plot(x, y_pct, label='%Peso', marker='s', markersize=4, color='black', linewidth=1)
+        ax.plot(x, yf, label='%F(d)', marker='o', markersize=4, color='black', linewidth=1)
+        ax.plot(x, yr, label='%R(d)', marker='x', markersize=4, color='black', linewidth=1)
         ax.set_xlabel("Tamaño (µm)")
         ax.set_ylabel("Porcentaje")
         ax.legend()
 
-    # FIX: Set Y-axis limits and ticks
     ax.set_ylim(0, 100)
     ax.set_yticks(np.arange(0, 101, 10))
-    # Escalas
     if escala == "Escala semilogarítmica (X log)":
         ax.set_xscale('log')
     elif escala == "Escala logarítmica (ambos log)":
@@ -369,7 +356,7 @@ def page_3():
     ax.grid(True, which='both', ls='--', alpha=0.5)
     ax.set_title(grafico)
     st.pyplot(fig)
-    
+
     col1, col2 = st.columns(2)
     with col1:
         if st.button("ANTERIOR"):
@@ -770,6 +757,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
