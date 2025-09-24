@@ -799,7 +799,7 @@ def page_5():
 # ---------- PÁGINA 6: Exportación ----------
 def page_6():
     st.title("EXPORTACIÓN DE DATOS")
-    st.markdown("Descargar todas las tablas en un archivo Excel o guardar el análisis en el servidor temporal.")
+    st.markdown("Descargar todas las tablas en un archivo Excel. Cada usuario obtiene su propio archivo en modo solo lectura.")
 
     # Construir Excel en memoria
     output = io.BytesIO()
@@ -827,21 +827,23 @@ def page_6():
 
     data = output.getvalue()
 
-    # Botón para descargar Excel
-    b64 = base64.b64encode(data).decode()
-    href = f'<a href="data:application/octet-stream;base64,{b64}" download="analisis_granulometrico.xlsx">📥 Descargar Excel (analisis_granulometrico.xlsx)</a>'
-    st.markdown(href, unsafe_allow_html=True)
+    # Botón oficial de Streamlit para descargar
+    st.download_button(
+        label="📥 Descargar Excel",
+        data=data,
+        file_name="analisis_granulometrico.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
-    # Botón para guardar el archivo en disco temporal
-    if st.button("GUARDAR"):
-        tmp_path = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx").name
-        with open(tmp_path, "wb") as f:
-            f.write(data)
-        st.success(f"Archivo guardado temporalmente en el servidor: {tmp_path}")
-
-    if st.button("VOLVER AL INICIO"):
-        st.session_state.page = 1
-        st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("ANTERIOR"):
+            st.session_state.page = 5
+            st.rerun()
+    with col2:
+        if st.button("VOLVER AL INICIO"):
+            st.session_state.page = 1
+            st.rerun()
 
 # ---------- Router ----------
 def main():
@@ -862,6 +864,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
