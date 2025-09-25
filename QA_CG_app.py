@@ -205,7 +205,11 @@ def page_1():
 
     with col2:
         st.subheader("Serie de Tamices")
-        st.image("3ad51923-2343-41a0-8586-dbaa35d5edf8.png", caption="Serie de tamices Tyler", use_container_width=True)
+        st.image(
+            "https://drive.google.com/uc?id=1A0r5SO5hq1Q6kbcvWg2zcF3-DQaEdzoz",
+            caption="Serie de tamices Tyler",
+            use_container_width=True
+        )
 
         if inicio:
             # Validate mandatory fields
@@ -872,6 +876,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
