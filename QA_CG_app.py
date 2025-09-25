@@ -684,10 +684,10 @@ def page_5():
         st.error("No hay resultados para ajustar. Regresa a DATOS EXPERIMENTALES y pulsa EJECUTAR.")
         return
 
-    # Prepare data for fitting (exclude last total row)
+    # Prepare data for fitting (excluir fila TOTAL)
     df_fit = results.iloc[:-1].copy()
-    mask = (df_fit['Tamaño promedio (µm)'] > 0) & (~np.isnan(df_fit['%F(d)']))
-    d = df_fit['Tamaño promedio (µm)'][mask].astype(float).values
+    mask = (df_fit['Tamaño inferior (µm)'] > 0) & (~np.isnan(df_fit['%F(d)']))
+    d = df_fit['Tamaño inferior (µm)'][mask].astype(float).values   # usar tamaño inferior
     y_exp = df_fit['%F(d)'][mask].astype(float).values
 
     if len(d) < 3:
@@ -706,7 +706,7 @@ def page_5():
             res1 = minimize(f_ggs, x0, bounds=[(0.01,10),(1e-6, max(d)*10)])
             FO_ggs = float(res1.fun)
             ggs_params = res1.x.tolist()
-        except Exception as e:
+        except Exception:
             FO_ggs = np.inf; ggs_params = [np.nan, np.nan]
 
         # RRSB
@@ -719,13 +719,13 @@ def page_5():
             res2 = minimize(f_rrsb, x0, bounds=[(0.01,10),(1e-6,max(d)*10)])
             FO_rrsb = float(res2.fun)
             rrsb_params = res2.x.tolist()
-        except Exception as e:
+        except Exception:
             FO_rrsb = np.inf; rrsb_params = [np.nan, np.nan]
 
         # Double Weibull
         try:
             try:
-                inv = interp1d(df_fit['%F(d)'], df_fit['Tamaño promedio (µm)'],
+                inv = interp1d(df_fit['%F(d)'], df_fit['Tamaño inferior (µm)'], 
                                fill_value="extrapolate", bounds_error=False)
                 init_d80 = float(inv(80.0))
                 if init_d80 <= 0 or np.isnan(init_d80):
@@ -741,7 +741,7 @@ def page_5():
             res3 = minimize(f_double, x0, bounds=bounds_dw)
             FO_dw = float(res3.fun)
             dw_params = res3.x.tolist()
-        except Exception as e:
+        except Exception:
             FO_dw = np.inf; dw_params = [np.nan, np.nan, np.nan, np.nan]
 
         # Save fits
@@ -756,11 +756,12 @@ def page_5():
     if st.session_state.get("models_fit", None):
         fits = st.session_state.models_fit
 
-        # Crear DataFrame con columnas deseadas
         table_data = []
-        for i in range(len(d)):
+        d_inferior = df_fit['Tamaño inferior (µm)'][mask].astype(float).values
+
+        for i in range(len(d_inferior)):
             row = {
-                "Tamaño (µm)": d[i],
+                "Tamaño inferior (µm)": d_inferior[i],
                 "%F(d)e": y_exp[i]
             }
             # GGS
@@ -796,10 +797,8 @@ def page_5():
             table_data.append(row)
 
         df_comp = pd.DataFrame(table_data)
-
-        # Ordenar columnas como en la foto
         df_comp = df_comp[[
-            "Tamaño (µm)", "%F(d)e",
+            "Tamaño inferior (µm)", "%F(d)e",
             "%F(d)m_GGS","ε²_GGS",
             "%F(d)m_RRSB","ε²_RRSB",
             "%F(d)m_DW","ε²_DW"
@@ -808,7 +807,9 @@ def page_5():
         st.subheader("Tabla comparativa: Experimental vs Modelos")
         st.dataframe(df_comp.style.format("{:.2f}"), height=320)
 
-        # ----------- Comparación de FO -----------
+    # ----------- Comparación de FO y gráficas -----------
+    if st.session_state.models_fit:
+        fits = st.session_state.models_fit
         fo_tbl = pd.DataFrame([
             {'Modelo':'GGS','F.O.':fits['GGS']['FO']},
             {'Modelo':'RRSB','F.O.':fits['RRSB']['FO']},
@@ -817,31 +818,32 @@ def page_5():
         st.subheader("Comparación de funciones objetivo (F.O.)")
         st.table(fo_tbl.style.format({'F.O.':'{:.6g}'}))
 
-        # Mejor modelo
         best = min(fits.items(), key=lambda x: x[1]['FO'])
         best_model_name = best[0]
         st.markdown(f"**Mejor modelo:** {best_model_name} con F.O. = {best[1]['FO']:.6g}")
 
-        # ----------- Gráfico -----------
-        st.subheader("Ajuste: Experimental vs Modelos")
+        # Graficar
         df_fit_plot = results.iloc[:-1].copy()
-        df_fit_plot = df_fit_plot[df_fit_plot['Tamaño promedio (µm)'].notna()]
-        xdata = df_fit_plot['Tamaño promedio (µm)'].values
+        df_fit_plot = df_fit_plot[df_fit_plot['Tamaño inferior (µm)'].notna()]
+        xdata = df_fit_plot['Tamaño inferior (µm)'].values
         ydata = df_fit_plot['%F(d)'].values
 
         fig, ax = plt.subplots(figsize=(8,4))
         ax.plot(xdata, ydata, 'o', label='Experimental', color='black', markersize=4)
         dd = np.linspace(np.min(xdata), np.max(xdata), 300)
+        # GGS
         if not np.isnan(fits['GGS']['params']).any():
             m, Dm = fits['GGS']['params']
             ax.plot(dd, GGS_model(dd, m, Dm), '-', label=f'GGS (m={m:.3f}, Dm={Dm:.3f})', linewidth=0.9)
+        # RRSB
         if not np.isnan(fits['RRSB']['params']).any():
             m2, l = fits['RRSB']['params']
             ax.plot(dd, RRSB_model(dd, m2, l), '--', label=f'RRSB (m={m2:.3f}, l={l:.3f})', linewidth=0.9)
-        if not np.isnan(fits['DoubleWeibull']['params']).any():
-            alpha, k1, k2, d80 = fits['DoubleWeibull']['params']
-            ax.plot(dd, double_weibull(dd, alpha, k1, k2, d80), ':', 
-                    label=f'DW (α={alpha:.3f},k1={k1:.3f},k2={k2:.3f},d80={d80:.2f})', linewidth=0.9)
+        # Double Weibull
+        p = fits['DoubleWeibull']['params']
+        if not np.isnan(p).any():
+            alpha, k1, k2, d80 = p
+            ax.plot(dd, double_weibull(dd, alpha, k1, k2, d80), ':', label=f'DW (α={alpha:.3f},k1={k1:.3f},k2={k2:.3f},d80={d80:.2f})', linewidth=0.9)
         ax.set_xlabel("Tamaño (µm)")
         ax.set_ylabel("%F(d)")
         ax.set_ylim(0, 100)
@@ -933,6 +935,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
