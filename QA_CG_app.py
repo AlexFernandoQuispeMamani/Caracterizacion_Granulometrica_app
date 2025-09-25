@@ -204,12 +204,13 @@ def page_1():
             inicio = st.form_submit_button("INICIO")
 
     with col2:
-        st.subheader("Serie de Tamices")
+        st.subheader("MET 2260")
         st.image(
-            "https://drive.google.com/uc?id=1A0r5SO5hq1Q6kbcvWg2zcF3-DQaEdzoz",
+            "imagen2.png",
             caption="Serie de tamices Tyler",
             use_container_width=True
         )
+
 
         if inicio:
             # Validate mandatory fields
@@ -876,6 +877,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
