@@ -340,11 +340,12 @@ def page_3():
 
     escala = st.selectbox("Escala", ["Escala decimal", "Escala semilogarítmica (X log)", "Escala logarítmica (ambos log)"], index=0, key='escala_select')
 
-    # Usar Tamaño inferior como X
+    # Usar Tamaño inferior como X en curvas acumulativas y de distribución
     plot_df = results.iloc[:-1].copy()  # quitar fila TOTAL
     plot_df = plot_df[plot_df['Tamaño inferior (µm)'].notna()]
 
-    x = plot_df['Tamaño inferior (µm)'].replace(0, np.nan)
+    x_inf = plot_df['Tamaño inferior (µm)'].replace(0, np.nan)
+    x_avg = plot_df['Tamaño promedio (µm)'].replace(0, np.nan)  # solo para histograma
     y_pct = plot_df['%Peso']
     yf = plot_df['%F(d)']
     yr = plot_df['%R(d)']
@@ -357,43 +358,40 @@ def page_3():
     ms = 4
 
     if grafico == "Histograma de frecuencia":
-        # histogram in black
-        widths = None
-        try:
-            xs = np.array(x.dropna())
-            if len(xs) >= 2:
-                widths = np.abs(np.diff(np.concatenate([xs, [xs[-1]*0.9]]))[:len(xs)])
-        except:
-            widths = None
         ax.bar(
-            x, y_pct,
-            width=widths if widths is not None else (np.nanmax(x)/len(x) if len(x) > 0 else 1),
+            x_avg, y_pct,
+            width=(np.nanmax(x_avg)/len(x_avg) if len(x_avg) > 0 else 1),
             color="black", edgecolor="black", linewidth=0.5, alpha=0.9
         )
-        ax.set_xlabel("Tamaño inferior (µm)")
+        ax.set_xlabel("Tamaño promedio (µm)")
         ax.set_ylabel("%Peso")
+
     elif grafico == "Diagrama de simple distribución":
-        ax.plot(x, y_pct, marker='o', markersize=ms, linewidth=lw, color='black')
+        ax.plot(x_inf, y_pct, marker='o', markersize=ms, linewidth=lw, color='black')
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("%Peso")
+
     elif grafico == "Diagrama Acumulativo de Subtamaño":
-        ax.plot(x, yf, marker='o', markersize=ms, linewidth=lw, color='black')
+        ax.plot(x_inf, yf, marker='o', markersize=ms, linewidth=lw, color='black')
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("%F(d)")
+
     elif grafico == "Diagrama Acumulativo de Sobretamaño":
-        ax.plot(x, yr, marker='x', markersize=ms, linewidth=lw, color='black')
+        ax.plot(x_inf, yr, marker='x', markersize=ms, linewidth=lw, color='black')
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("%R(d)")
+
     elif grafico == "Diagrama Acumulativo (Combinación)":
-        ax.plot(x, yf, label='%F(d)', marker='o', markersize=ms, linewidth=lw, color='black')
-        ax.plot(x, yr, label='%R(d)', marker='x', markersize=ms, linewidth=lw, color='grey')
+        ax.plot(x_inf, yf, label='%F(d)', marker='o', markersize=ms, linewidth=lw, color='black')
+        ax.plot(x_inf, yr, label='%R(d)', marker='x', markersize=ms, linewidth=lw, color='black')
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("Porcentaje")
         ax.legend()
-    else:
-        ax.plot(x, y_pct, label='%Peso', marker='s', markersize=ms, linewidth=lw, color='black')
-        ax.plot(x, yf, label='%F(d)', marker='o', markersize=ms, linewidth=lw, color='grey')
-        ax.plot(x, yr, label='%R(d)', marker='x', markersize=ms, linewidth=lw, color='darkred')
+
+    else:  # Curvas granulométricas (Combinación 2,3,4)
+        ax.plot(x_inf, y_pct, label='%Peso', marker='s', markersize=ms, linewidth=lw, color='black')
+        ax.plot(x_inf, yf, label='%F(d)', marker='o', markersize=ms, linewidth=lw, color='black')
+        ax.plot(x_inf, yr, label='%R(d)', marker='x', markersize=ms, linewidth=lw, color='black')
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("Porcentaje")
         ax.legend()
@@ -872,6 +870,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
