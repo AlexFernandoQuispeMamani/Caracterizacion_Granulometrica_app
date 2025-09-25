@@ -317,8 +317,7 @@ def page_3():
             st.rerun()
         return
 
-    # Mostrar tabla de resultados: formatear con 2 decimales, pero mantener valores numéricos
-    # Para visualización usar Styler
+    # Mostrar tabla de resultados
     fmt = {}
     for c in results.columns:
         if c in ['Peso (g)', '%Peso', '%F(d)', '%R(d)', 'Tamaño promedio (µm)', 'Tamaño inferior (µm)', 'Tamaño superior (µm)']:
@@ -341,60 +340,61 @@ def page_3():
 
     escala = st.selectbox("Escala", ["Escala decimal", "Escala semilogarítmica (X log)", "Escala logarítmica (ambos log)"], index=0, key='escala_select')
 
-    # Para graficar usamos solo filas de datos (excluyendo la fila TOTAL)
-    plot_df = results.iloc[:-1].copy()  # last row is total
-    # also drop rows where Tamaño promedio is NaN (incomplete)
-    plot_df = plot_df[plot_df['Tamaño promedio (µm)'].notna()]
+    # Usar Tamaño inferior como X
+    plot_df = results.iloc[:-1].copy()  # quitar fila TOTAL
+    plot_df = plot_df[plot_df['Tamaño inferior (µm)'].notna()]
 
-    x = plot_df['Tamaño promedio (µm)'].replace(0, np.nan)
+    x = plot_df['Tamaño inferior (µm)'].replace(0, np.nan)
     y_pct = plot_df['%Peso']
     yf = plot_df['%F(d)']
     yr = plot_df['%R(d)']
 
     fig, ax = plt.subplots(figsize=(9, 4))
-    fig.patch.set_facecolor('#e6e6e6')  # area outside plotting box: light grey
-    ax.set_facecolor('white')  # plotting area white
+    fig.patch.set_facecolor('#e6e6e6')
+    ax.set_facecolor('white')
 
     lw = 0.9
     ms = 4
 
     if grafico == "Histograma de frecuencia":
-        # use bar; compute widths from size intervals if possible
+        # histogram in black
         widths = None
         try:
             xs = np.array(x.dropna())
             if len(xs) >= 2:
-                # determine widths as diffs in logspace or linear
                 widths = np.abs(np.diff(np.concatenate([xs, [xs[-1]*0.9]]))[:len(xs)])
         except:
             widths = None
-        ax.bar(x, y_pct, width=widths if widths is not None else (np.nanmax(x)/len(x) if len(x) > 0 else 1),
-               edgecolor='black', linewidth=0.4, alpha=0.8)
-        ax.set_xlabel("Tamaño (µm)")
+        ax.bar(
+            x, y_pct,
+            width=widths if widths is not None else (np.nanmax(x)/len(x) if len(x) > 0 else 1),
+            color="black", edgecolor="black", linewidth=0.5, alpha=0.9
+        )
+        ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("%Peso")
     elif grafico == "Diagrama de simple distribución":
         ax.plot(x, y_pct, marker='o', markersize=ms, linewidth=lw, color='black')
-        ax.set_xlabel("Tamaño (µm)")
+        ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("%Peso")
     elif grafico == "Diagrama Acumulativo de Subtamaño":
         ax.plot(x, yf, marker='o', markersize=ms, linewidth=lw, color='black')
-        ax.set_xlabel("Tamaño (µm)")
+        ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("%F(d)")
     elif grafico == "Diagrama Acumulativo de Sobretamaño":
         ax.plot(x, yr, marker='x', markersize=ms, linewidth=lw, color='black')
-        ax.set_xlabel("Tamaño (µm)")
+        ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("%R(d)")
     elif grafico == "Diagrama Acumulativo (Combinación)":
-        ax.plot(x, yf, label='%F(d)', marker='o', markersize=ms, linewidth=lw)
-        ax.plot(x, yr, label='%R(d)', marker='x', markersize=ms, linewidth=lw)
-        ax.set_xlabel("Tamaño (µm)")
+        ax.plot(x, yf, label='%F(d)', marker='o', markersize=ms, linewidth=lw, color='black')
+        ax.plot(x, yr, label='%R(d)', marker='x', markersize=ms, linewidth=lw, color='grey')
+        ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("Porcentaje")
         ax.legend()
     else:
-        ax.plot(x, y_pct, label='%Peso', marker='s', markersize=ms, linewidth=lw)
-        ax.plot(x, yf, label='%F(d)', marker='o', markersize=ms, linewidth=lw)
-        ax.plot(x, yr, label='%R(d)', marker='x', markersize=ms, linewidth=lw)
-        ax.set_xlabel("Tamaño (µm)")
+        ax.plot(x, y_pct, label='%Peso', marker='s', markersize=ms, linewidth=lw, color='black')
+        ax.plot(x, yf, label='%F(d)', marker='o', markersize=ms, linewidth=lw, color='grey')
+        ax.plot(x, yr, label='%R(d)', marker='x', markersize=ms, linewidth=lw, color='darkred')
+        ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("Porcentaje")
         ax.legend()
 
@@ -872,6 +872,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
