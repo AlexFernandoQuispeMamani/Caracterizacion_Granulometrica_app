@@ -495,31 +495,44 @@ def page_4():
                 st.write("- " + c)
 
     # Sección 2: Registro de tamaños y porcentajes pasantes
-    
     st.header("REGISTRO DE TAMAÑOS Y PORCENTAJES PASANTES")
     col1, col2 = st.columns(2)
+
     with col1:
-        st.subheader("PERFIL GRANULOMÉTRICO")
+        st.subheader("PERFIL GRANULÓMETRICO")
         st.markdown("El perfil granulométrico de una muestra describe cualitativamente la distribución por tamaños de dicha muestra.")
         # Diagrama acumulativo de subtamaño en escala decimal obligatorio
         plot_df = results.iloc[:-1].copy()
         plot_df = plot_df[plot_df['Tamaño promedio (µm)'].notna()]
         x = plot_df['Tamaño promedio (µm)']
         y = plot_df['%F(d)']
+
         fig, ax = plt.subplots(figsize=(6,4))
-        fig.patch.set_facecolor('#e6e6e6'); ax.set_facecolor('white')
-        ax.plot(x, y, marker='o', linewidth=0.9)
+        fig.patch.set_facecolor('#e6e6e6')
+        ax.set_facecolor('white')
+
+        # preparar máscara para evitar NaN en la gráfica
+        mask_plot = x.notna() & y.notna()
+        x_plot = x[mask_plot]
+        y_plot = y[mask_plot]
+
+        # Línea negra delgada y puntos redondos pequeños (relleno blanco, borde negro)
+        ax.plot(x_plot, y_plot, color='black', linewidth=0.8, zorder=2)
+        ax.scatter(x_plot, y_plot, facecolors='white', edgecolors='black', s=30, linewidths=0.8, zorder=3, marker='o')
+
         ax.set_xlabel("Tamaño (µm)")
         ax.set_ylabel("%F(d)")
-        ax.set_ylim(0,100)
+        ax.set_ylim(0, 100)
+        ax.set_yticks(np.arange(0, 101, 10))  # eje Y de 10 en 10
         ax.grid(True, which='both', ls='--', alpha=0.5)
         st.pyplot(fig)
+
         # calcular d80 por interpolación/extrapolación
         try:
             mask = (~np.isnan(x)) & (~np.isnan(y))
             xs = np.array(x[mask])
             ys = np.array(y[mask])
-            # order by xs ascending for interp
+            # ordenar por xs ascending para interpolación consistente
             order = np.argsort(xs)
             xs_s = xs[order]
             ys_s = ys[order]
@@ -542,7 +555,7 @@ def page_4():
                     inv = interp1d(y[mask], x[mask], fill_value="extrapolate", bounds_error=False)
                     d_val = float(inv(pct_input))
                     st.session_state.nominal_sizes = pd.concat([st.session_state.nominal_sizes,
-                                                               pd.DataFrame([{'%F(d)':pct_input,'Tamaño (µm)':d_val}])],
+                                                               pd.DataFrame([{'%F(d)': pct_input, 'Tamaño (µm)': d_val}])],
                                                               ignore_index=True)
                     st.success(f"Grabado: {pct_input}% -> {d_val:.3f} µm")
                 except Exception as e:
@@ -557,7 +570,7 @@ def page_4():
                     f = interp1d(x[mask], y[mask], fill_value="extrapolate", bounds_error=False)
                     pctv = float(f(d_input))
                     st.session_state.nominal_sizes = pd.concat([st.session_state.nominal_sizes,
-                                                               pd.DataFrame([{'%F(d)':pctv,'Tamaño (µm)':d_input}])],
+                                                               pd.DataFrame([{'%F(d)': pctv, 'Tamaño (µm)': d_input}])],
                                                               ignore_index=True)
                     st.success(f"Grabado: {d_input} µm -> {pctv:.3f}%")
                 except Exception as e:
@@ -871,6 +884,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
