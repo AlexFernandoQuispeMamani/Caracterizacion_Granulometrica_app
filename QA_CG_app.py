@@ -205,7 +205,7 @@ def page_1():
 
     with col2:
         st.subheader("MET 2260")
-        st.image("Imagen2.png", caption="Serie de tamices Tyler", use_container_width=True)
+        st.image("Imagen2.png", caption="Concentración, Piro y Siderurgia, Adelante Metalurgia!!!...", use_container_width=300)
 
         if inicio:
             # Validate mandatory fields
@@ -872,6 +872,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
