@@ -185,10 +185,10 @@ def page_1():
     tamaños ingresados manualmente. Genera tablas, gráficos (varias escalas), estadísticas descriptivas,
     estimaciones según Folk & Ward, ajuste a modelos (GGS, RRSB, Doble Weibull) y exportación de resultados.
     """)
-    st.markdown("### INFORMACIÓN GENERAL (obligatoria)")
+    st.markdown("### INFORMACIÓN GENERAL")
     with st.form("user_info_form", clear_on_submit=False):
-        nombre = st.text_input("USUARIO (tu nombre)", value=st.session_state['user_info'].get('nombre',''))
-        correo = st.text_input("CORREO ELECTRÓNICO (Gmail)", value=st.session_state['user_info'].get('correo',''))
+        nombre = st.text_input("USUARIO", value=st.session_state['user_info'].get('nombre',''))
+        correo = st.text_input("CORREO ELECTRÓNICO", value=st.session_state['user_info'].get('correo',''))
         procedencia = st.text_input("PROCEDENCIA DE LA MUESTRA", value=st.session_state['user_info'].get('procedencia',''))
         codigo = st.text_input("CÓDIGO DE LA MUESTRA", value=st.session_state['user_info'].get('codigo',''))
         fecha_muestreo = st.date_input("FECHA DE MUESTREO", value=datetime.fromisoformat(st.session_state['user_info'].get('fecha', datetime.today().date().isoformat())).date())
@@ -858,6 +858,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
