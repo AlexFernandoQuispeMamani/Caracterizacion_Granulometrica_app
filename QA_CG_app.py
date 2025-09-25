@@ -187,13 +187,30 @@ def page_1():
     estimaciones según Folk & Ward, ajuste a modelos (GGS, RRSB, Doble Weibull) y exportación de resultados.
     """)
     st.markdown("### INFORMACIÓN GENERAL")
-    with st.form("user_info_form", clear_on_submit=False):
-        nombre = st.text_input("USUARIO", value=st.session_state['user_info'].get('nombre',''))
-        correo = st.text_input("CORREO ELECTRÓNICO", value=st.session_state['user_info'].get('correo',''))
-        procedencia = st.text_input("PROCEDENCIA DE LA MUESTRA", value=st.session_state['user_info'].get('procedencia',''))
-        codigo = st.text_input("CÓDIGO DE LA MUESTRA", value=st.session_state['user_info'].get('codigo',''))
-        fecha_muestreo = st.date_input("FECHA DE MUESTREO", value=datetime.fromisoformat(st.session_state['user_info'].get('fecha', datetime.today().date().isoformat())).date())
-        inicio = st.form_submit_button("INICIO")
+    col1, col2 = st.columns([2,1])
+
+    with col1:
+        with st.form("user_info_form", clear_on_submit=False):
+            nombre = st.text_input("USUARIO", value=st.session_state['user_info'].get('nombre',''))
+            correo = st.text_input("CORREO ELECTRÓNICO", value=st.session_state['user_info'].get('correo',''))
+            procedencia = st.text_input("PROCEDENCIA DE LA MUESTRA", value=st.session_state['user_info'].get('procedencia',''))
+            codigo = st.text_input("CÓDIGO DE LA MUESTRA", value=st.session_state['user_info'].get('codigo',''))
+            fecha_muestreo = st.date_input(
+                "FECHA DE MUESTREO",
+                value=datetime.fromisoformat(
+                    st.session_state['user_info'].get('fecha', datetime.today().date().isoformat())
+                ).date()
+            )
+            inicio = st.form_submit_button("INICIO")
+
+    with col2:
+        st.subheader("Serie de Tamices")
+        st.image(
+            "https://drive.google.com/uc?id=1A0r5SO5hq1Q6kbcvWg2zcF3-DQaEdzoz",
+            caption="Serie de tamices Tyler",
+            use_container_width=True
+        )
+
         if inicio:
             # Validate mandatory fields
             if not nombre or not correo or not procedencia or not codigo:
@@ -859,6 +876,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
