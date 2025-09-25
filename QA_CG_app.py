@@ -495,6 +495,7 @@ def page_4():
                 st.write("- " + c)
 
     # Sección 2: Registro de tamaños y porcentajes pasantes
+    
     st.header("REGISTRO DE TAMAÑOS Y PORCENTAJES PASANTES")
     col1, col2 = st.columns(2)
     with col1:
@@ -574,16 +575,14 @@ def page_4():
     # Sección 3: Folk & Ward
     st.header("ESTADÍSTICOS SEGÚN FOLK & WARD")
     st.markdown("Folk & Ward (1957): se calculan parámetros de tendencia central y de dispersión (M, Md, σ, Sk, K) usando percentiles (d5, d16, d25, d50, d75, d84, d95).")
-    # Necesitamos d5,d16,d25,d50,d75,d84,d95 - intentar calcular por interpolación usando curva %F(d)
     try:
-        # prepare interpolation inversion (y = %F -> x = tamaño)
+        # preparar interpolación inversa
         x_all = plot_df['Tamaño promedio (µm)']
         y_all = plot_df['%F(d)']
         mask = (~np.isnan(x_all)) & (~np.isnan(y_all))
         if mask.sum() < 2:
             st.warning("No hay suficientes puntos para calcular Folk & Ward.")
         else:
-            # order ascending x for inversion
             xs = np.array(x_all[mask])
             ys = np.array(y_all[mask])
             order = np.argsort(xs)
@@ -592,15 +591,13 @@ def page_4():
             inv = interp1d(ys_s, xs_s, fill_value="extrapolate", bounds_error=False)
             perc_needed = [5,16,25,50,75,84,95]
             ds = {p: float(inv(p)) for p in perc_needed}
-            # Convert µm -> mm for phi units (phi = -log2(d_mm))
             ds_mm = {p: ds[p]/1000.0 for p in ds}
-            # prevent invalid values
             for p in ds_mm:
                 if ds_mm[p] <= 0:
                     raise ValueError("Valores de tamaño no positivos para convertir a phi.")
             phi = {p: -np.log2(ds_mm[p]) for p in ds_mm}
 
-            # Folk & Ward formulas (classical)
+            # Cálculos Folk & Ward
             M = (phi[16] + phi[50] + phi[84]) / 3.0
             Md = phi[50]
             sigmaI = ((phi[84] - phi[16]) / 4.0) + ((phi[95] - phi[5]) / 6.6)
@@ -611,23 +608,27 @@ def page_4():
                 'Parámetro':['M (phi)','Md (phi)','σ (phi)','Sk (phi)','K (phi)'],
                 'Valor':[M, Md, sigmaI, SkI, KG]
             })
-            st.table(folk_tbl.style.format({'Valor':'{:.3f}'}))
 
-            # Interpretracion heurística
-            disp_comment = "Dispersión indefinida"
-            if sigmaI < 0.5:
-                disp_comment = f"σ = {sigmaI:.3f}: muestra **bien seleccionada** (poco dispersa)."
-            elif sigmaI < 1.0:
-                disp_comment = f"σ = {sigmaI:.3f}: muestra **moderadamente seleccionada**."
-            else:
-                disp_comment = f"σ = {sigmaI:.3f}: muestra **pobremente seleccionada** (amplia dispersión)."
-            skew_comment = f"Sk = {SkI:.3f}: " + ("sesgo hacia partículas gruesas." if SkI < 0 else "sesgo hacia partículas finas.")
-            kurt_comment = f"K = {KG:.3f}: " + ("leptocúrtica (pico agudo)." if KG > 1.2 else ("platicúrtica (pico bajo)." if KG < 0.8 else "mesocúrtica."))
+            col_tbl, col_interp = st.columns([1,1])
+            with col_tbl:
+                st.subheader("Tabla Folk & Ward")
+                st.table(folk_tbl.style.format({'Valor':'{:.3f}'}))
+            with col_interp:
+                st.subheader("Interpretación Folk & Ward")
+                # Interpretación heurística
+                disp_comment = "Dispersión indefinida"
+                if sigmaI < 0.5:
+                    disp_comment = f"σ = {sigmaI:.3f}: muestra **bien seleccionada** (poco dispersa)."
+                elif sigmaI < 1.0:
+                    disp_comment = f"σ = {sigmaI:.3f}: muestra **moderadamente seleccionada**."
+                else:
+                    disp_comment = f"σ = {sigmaI:.3f}: muestra **pobremente seleccionada** (amplia dispersión)."
+                skew_comment = f"Sk = {SkI:.3f}: " + ("sesgo hacia partículas gruesas." if SkI < 0 else "sesgo hacia partículas finas.")
+                kurt_comment = f"K = {KG:.3f}: " + ("leptocúrtica (pico agudo)." if KG > 1.2 else ("platicúrtica (pico bajo)." if KG < 0.8 else "mesocúrtica."))
 
-            st.markdown("**Interpretación Folk & Ward:**")
-            st.write("- " + disp_comment)
-            st.write("- " + skew_comment)
-            st.write("- " + kurt_comment)
+                st.write("- " + disp_comment)
+                st.write("- " + skew_comment)
+                st.write("- " + kurt_comment)
     except Exception as e:
         st.warning("No se pueden calcular Folk & Ward (falta d5,d95 o datos insuficientes): " + str(e))
 
@@ -641,7 +642,7 @@ def page_4():
         if st.button("SIGUIENTE"):
             st.session_state.page = 5
             st.rerun()
-
+            
 # ---------- MODELOS (GGS, RRSB, Doble Weibull) ----------
 def GGS_model(d, m, Dm):
     # flexible cumulative form: 100/(1+(d/Dm)**(-m))
@@ -870,6 +871,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
