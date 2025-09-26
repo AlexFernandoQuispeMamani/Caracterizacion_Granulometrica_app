@@ -587,14 +587,38 @@ def page_4():
     if st.button("ESTIMAR"):
         try:
             req_pcts = [5,16,25,50,75,84,95]
-            if st.session_state.nominal_sizes.empty or not all(
-                any(abs(st.session_state.nominal_sizes['%F(d)'] - p) < 1e-6 for p in req_pcts)
-                for p in req_pcts):
+
+            if st.session_state.nominal_sizes.empty:
                 st.warning("Grabe los tamaños nominales d5, d16, d25, d50, d75, d84, d95")
             else:
-                ds = {p: float(st.session_state.nominal_sizes.loc[
-                    abs(st.session_state.nominal_sizes['%F(d)'] - p) < 1e-6, 'Tamaño (µm)'].iloc[0]) 
-                      for p in req_pcts}
+                ds = {}
+                for p in req_pcts:
+                    match = st.session_state.nominal_sizes.loc[
+                        (st.session_state.nominal_sizes['%F(d)'].sub(p).abs() < 1e-6), 'Tamaño (µm)']
+                    if match.empty:
+                        st.warning(f"Falta grabar d{p}")
+                        ds = None
+                        break
+                    else:
+                        ds[p] = float(match.iloc[0])
+
+                if ds is not None:
+                    # Reordenar por percentil para evitar problemas de grabación desordenada
+                    ds = dict(sorted(ds.items(), key=lambda kv: kv[0]))
+
+                    ds_mm = {p: ds[p]/1000.0 for p in ds}
+                    for p in ds_mm:
+                        if ds_mm[p] <= 0:
+                            raise ValueError("Valores de tamaño no positivos para convertir a phi.")
+                    phi = {p: -np.log2(ds_mm[p]) for p in ds_mm}
+
+                    M = (phi[16] + phi[50] + phi[84]) / 3.0
+                    Md = phi[50]
+                    sigmaI = ((phi[84] - phi[16]) / 4.0) + ((phi[95] - phi[5]) / 6.6)
+                    SkI = ((phi[16] + phi[84] - 2*phi[50]) / (2*(phi[84]-phi[16]))) + \
+                          ((phi[5] + phi[95] - 2*phi[50]) / (2*(phi[95]-phi[5])))
+                    KG = (phi[95] - phi[5]) / (2.44 * (phi[75] - phi[25]))
+
                 ds_mm = {p: ds[p]/1000.0 for p in ds}
                 for p in ds_mm:
                     if ds_mm[p] <= 0:
@@ -924,6 +948,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
