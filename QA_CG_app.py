@@ -367,10 +367,10 @@ def page_3():
         # Relleno de puntos con hatch '.' (puntos)
         ax.bar(
             x_avg, y_pct,
-            width=width,
-            facecolor="white", edgecolor="k", linewidth=0.5,
-            hatch='.'  # relleno tipo puntitos
+            width=(np.nanmax(x_avg)/len(x_avg) if len(x_avg) > 0 else 1),
+            color="gray", edgecolor="black", linewidth=0.5, alpha=0.9
         )
+
         ax.set_xlabel("Tamaño promedio (µm)")
         ax.set_ylabel("%Peso")
 
@@ -389,7 +389,7 @@ def page_3():
 
     elif grafico == "Diagrama Acumulativo de Sobretamaño":
         # 'X' negras y fondo blanco (usamos scatter para controlar colores)
-        ax.scatter(x_inf, yr, marker='x', s=64, linewidths=1.2, edgecolors='k', facecolors='white', zorder=4)
+        ax.scatter(x_inf, yr, marker='x', s=64, linewidths=1.2, edgecolors='k', facecolors='black', zorder=4)
         ax.plot(x_inf, yr, color='k', linewidth=lw)
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("%R(d)")
@@ -1175,6 +1175,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
