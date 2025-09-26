@@ -915,12 +915,28 @@ def page_5():
     # ------------------- Gráficos -------------------
     xdata = d; ydata = y_exp
     dd = np.linspace(np.min(xdata), np.max(xdata), 500)
+
+    # Predicciones para graficar en malla fina (ya clippeadas 0-100)
     y_ggs_plot = np.clip(GGS_model(dd, *ggs_params), None, 100.0) if not np.isnan(ggs_params).any() else None
     y_rrsb_plot = np.clip(RRSB_model(dd, *rrsb_params), None, 100.0) if not np.isnan(rrsb_params).any() else None
     y_dw_plot = np.clip(double_weibull(dd, *dw_params), None, 100.0) if not np.isnan(dw_params).any() else None
 
-    exp_marker_kwargs = {'marker':'o', 'markersize':5, 'markeredgewidth':0.8,
-                         'markeredgecolor':'k', 'markerfacecolor':'white', 'linestyle':'None'}
+    # Predicciones en los puntos experimentales (para tabla comparativa ya usaste; aquí opcional)
+    y_ggs_pts = np.clip(GGS_model(xdata, *ggs_params), None, 100.0) if not np.isnan(ggs_params).any() else None
+    y_rrsb_pts = np.clip(RRSB_model(xdata, *rrsb_params), None, 100.0) if not np.isnan(rrsb_params).any() else None
+    y_dw_pts = np.clip(double_weibull(xdata, *dw_params), None, 100.0) if not np.isnan(dw_params).any() else None
+
+    # Estilo de puntos experimentales: fondo blanco, borde negro
+    marker_kwargs = dict(marker='o', s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4)
+
+    # Estilos de línea (todas negras, distintos linestyle)
+    line_styles = {
+        'GGS': {'linestyle':'-',  'label':'GGS'},
+        'RRSB':{'linestyle':'--', 'label':'RRSB'},
+        'DW':  {'linestyle':'-.', 'label':'Doble Weibull'}
+    }
+    line_common = {'color':'k', 'linewidth':1.1, 'zorder':1}
+
     graf_option = st.selectbox("Selecciona tipo de gráfica:",
                                ["Comparación de perfiles",
                                 "Diagrama GGS (log-log)",
@@ -928,36 +944,83 @@ def page_5():
                                 "Diagrama DW (decimal)"])
     fig, ax = plt.subplots(figsize=(8,4))
 
-    # Todas las líneas negras, puntos con borde negro y fondo blanco
-    line_kwargs = {'color':'k', 'linewidth':0.9}
-
     if graf_option == "Comparación de perfiles":
-        ax.plot(xdata, ydata, **exp_marker_kwargs, label='Experimental')
-        if y_ggs_plot is not None: ax.plot(dd, y_ggs_plot, '-', label='GGS', **line_kwargs)
-        if y_rrsb_plot is not None: ax.plot(dd, y_rrsb_plot, '-', label='RRSB', **line_kwargs)
-        if y_dw_plot is not None: ax.plot(dd, y_dw_plot, '-', label='DW', **line_kwargs)
-        ax.set_xlabel("Tamaño (µm)"); ax.set_ylabel("%F(d)")
-        ax.set_ylim(0,100); ax.set_yticks(np.arange(0,101,10)); ax.grid(True, ls='--', alpha=0.5); ax.legend()
+        # Dibujar curvas de modelos primero (si existen), cada una con su linestyle
+        if y_ggs_plot is not None:
+            ax.plot(dd, y_ggs_plot, linestyle=line_styles['GGS']['linestyle'], **line_common, label=f"GGS ({line_styles['GGS']['linestyle']})")
+        if y_rrsb_plot is not None:
+            ax.plot(dd, y_rrsb_plot, linestyle=line_styles['RRSB']['linestyle'], **line_common, label=f"RRSB ({line_styles['RRSB']['linestyle']})")
+        if y_dw_plot is not None:
+            ax.plot(dd, y_dw_plot, linestyle=line_styles['DW']['linestyle'], **line_common, label=f"DW ({line_styles['DW']['linestyle']})")
+
+        # Luego dibujar puntos experimentales (sobre las curvas)
+        ax.scatter(xdata, ydata, **marker_kwargs)
+
+        ax.set_title("Comparación de perfiles")
+        ax.set_xlabel("Tamaño (µm)")
+        ax.set_ylabel("%F(d)")
+        ax.set_ylim(0,100)
+        ax.set_yticks(np.arange(0,101,10))
+        ax.xaxis.set_major_locator(plt.MaxNLocator(8))
+        ax.grid(True, ls='--', alpha=0.5)
+        ax.legend()
 
     elif graf_option == "Diagrama GGS (log-log)":
         ax.set_xscale('log'); ax.set_yscale('log')
-        ax.plot(xdata, np.clip(ydata,1e-6,100.0), **exp_marker_kwargs)
-        if y_ggs_plot is not None: ax.plot(dd, np.clip(y_ggs_plot,1e-6,100.0), '-', **line_kwargs)
-        ax.set_xlabel("Tamaño (µm) [log]"); ax.set_ylabel("%F(d) [log]"); ax.grid(True, which='both', ls='--', alpha=0.5)
+        # Curva GGS (trazamos primero)
+        if y_ggs_plot is not None:
+            ax.plot(dd, np.clip(y_ggs_plot, 1e-6, 100.0),
+                    linestyle=line_styles['GGS']['linestyle'], **line_common)
+        # Puntos experimentales (dibujados sobre la curva)
+        ax.scatter(xdata, np.clip(ydata, 1e-6, 100.0), **marker_kwargs)
+
+        ax.set_title("Diagrama GGS (log-log)")
+        ax.set_xlabel("Tamaño (µm) [escala log]")
+        ax.set_ylabel("%F(d) [escala log]")
+        # ajustar límites para buena estética: dejar espacio fuera de puntos
+        xmin, xmax = np.min(xdata), np.max(xdata)
+        ax.set_xlim(xmin*0.8 if xmin>0 else xmin, xmax*1.2)
+        ax.set_ylim(1e-6, 100.0)
+        ax.grid(True, which='both', ls='--', alpha=0.5)
 
     elif graf_option == "Diagrama RRSB (log-x, transform y)":
-        ax.set_xscale('log'); ax.set_xlabel("Tamaño (µm) [log]")
-        def transform_rrsb(y_percent): y=np.minimum(99.9999,np.maximum(1e-8,y_percent)); return np.log(np.log(1.0/(1.0-(y/100.0))))
+        ax.set_xscale('log')
+        # Transformación segura
+        def transform_rrsb(y_percent):
+            y = np.minimum(99.9999, np.maximum(1e-8, y_percent))
+            return np.log(np.log(1.0 / (1.0 - (y / 100.0)))))
+        # Curva del modelo (RRSB) transformada: plotear primero (si existe)
+        if y_rrsb_plot is not None:
+            y_rrsb_trans = transform_rrsb(y_rrsb_plot)
+            ax.plot(dd, y_rrsb_trans, linestyle=line_styles['RRSB']['linestyle'], **line_common)
+        # Puntos experimentales transformados y dibujados encima
         ydata_trans = transform_rrsb(ydata)
-        ax.plot(xdata, ydata_trans, **exp_marker_kwargs)
-        if y_rrsb_plot is not None: ax.plot(dd, transform_rrsb(y_rrsb_plot), '-', **line_kwargs)
-        ax.set_ylabel("Log[ ln(1 / (1 - (%F/100))) ]"); ax.grid(True, ls='--', alpha=0.5)
+        ax.scatter(xdata, ydata_trans, **marker_kwargs)
+
+        ax.set_title("Diagrama RRSB (transform)")
+        ax.set_xlabel("Tamaño (µm) [escala log]")
+        ax.set_ylabel("Log[ ln(1 / (1 - (%F/100)) ) ]")
+        # ajustar límites X para dar separación estética
+        xmin, xmax = np.min(xdata), np.max(xdata)
+        ax.set_xlim(xmin*0.8 if xmin>0 else xmin, xmax*1.2)
+        ax.grid(True, ls='--', alpha=0.5)
 
     elif graf_option == "Diagrama DW (decimal)":
-        ax.plot(xdata, ydata, **exp_marker_kwargs)
-        if y_dw_plot is not None: ax.plot(dd, y_dw_plot, '-', **line_kwargs)
-        ax.set_xlabel("Tamaño (µm)"); ax.set_ylabel("%F(d)"); ax.set_ylim(0,100); ax.set_yticks(np.arange(0,101,10)); ax.grid(True, ls='--', alpha=0.5)
+        # Curva DW primero
+        if y_dw_plot is not None:
+            ax.plot(dd, y_dw_plot, linestyle=line_styles['DW']['linestyle'], **line_common)
+        # Puntos experimentales encima
+        ax.scatter(xdata, ydata, **marker_kwargs)
 
+        ax.set_title("Diagrama DW (decimal)")
+        ax.set_xlabel("Tamaño (µm)")
+        ax.set_ylabel("%F(d)")
+        ax.set_ylim(0,100)
+        ax.set_yticks(np.arange(0,101,10))
+        ax.xaxis.set_major_locator(plt.MaxNLocator(8))
+        ax.grid(True, ls='--', alpha=0.5)
+
+    # Mostrar figura (puntos siempre en primer plano)
     st.pyplot(fig, use_container_width=True)
 
     # ------------------- Navegación -------------------
@@ -1038,6 +1101,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
