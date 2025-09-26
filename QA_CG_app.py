@@ -637,7 +637,9 @@ def page_4():
                     col_tbl, col_interp = st.columns([1,1])
                     with col_tbl:
                         st.subheader("Tabla Folk & Ward")
-                        st.table(folk_tbl.style.format({'Valor':'{:.3f}'}))
+                        # Ocultar la numeración automática
+                        st.dataframe(folk_tbl.style.format({'Valor':'{:.3f}'}).hide(axis="index"))
+
 
                     with col_interp:
                         st.subheader("Interpretación Folk & Ward")
@@ -986,6 +988,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
