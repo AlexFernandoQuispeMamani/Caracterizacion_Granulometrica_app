@@ -396,7 +396,7 @@ def page_3():
     elif grafico == "Diagrama Acumulativo (Combinación)":
         ax.scatter(x_inf, yf, s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4, label='%F(d)')
         ax.plot(x_inf, yf, color='k', linewidth=lw)
-        ax.scatter(x_inf, yr, marker='x', s=64, linewidths=1.2, edgecolors='k', facecolors='white', zorder=4, label='%R(d)')
+        ax.scatter(x_inf, yr, marker='x', s=36, linewidths=1.2, edgecolors='k', facecolors='k', zorder=4, label='%R(d)')
         ax.plot(x_inf, yr, color='k', linewidth=lw)
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("Porcentaje")
@@ -1174,6 +1174,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
