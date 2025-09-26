@@ -977,22 +977,28 @@ def page_5():
         ax.set_title("Diagrama GGS (log-log)")
         ax.set_xlabel("Tamaño (µm) [escala log]")
         ax.set_ylabel("%F(d) [escala log]")
-        # ajustar límites para buena estética: dejar espacio fuera de puntos
+
+        # --- Ajuste de límites dinámico ---
         xmin, xmax = np.min(xdata), np.max(xdata)
-        ax.set_xlim(xmin*0.8 if xmin>0 else xmin, xmax*1.2)
-        ax.set_ylim(1e-6, 100.0)
+        ymin, ymax = np.min(ydata[ydata > 0]), np.max(ydata)
+        ax.set_xlim(xmin*0.8 if xmin > 0 else xmin, xmax*1.2)
+        ax.set_ylim(ymin*0.8 if ymin > 0 else ymin, ymax*1.2)
+
         ax.grid(True, which='both', ls='--', alpha=0.5)
 
     elif graf_option == "Diagrama RRSB (log-x, transform y)":
         ax.set_xscale('log')
+
         # Transformación segura
         def transform_rrsb(y_percent):
             y = np.minimum(99.9999, np.maximum(1e-8, y_percent))
             return np.log(np.log(1.0 / (1.0 - (y / 100.0))))
+
         # Curva del modelo (RRSB) transformada: plotear primero (si existe)
         if y_rrsb_plot is not None:
             y_rrsb_trans = transform_rrsb(y_rrsb_plot)
             ax.plot(dd, y_rrsb_trans, linestyle=line_styles['RRSB']['linestyle'], **line_common)
+
         # Puntos experimentales transformados y dibujados encima
         ydata_trans = transform_rrsb(ydata)
         ax.scatter(xdata, ydata_trans, **marker_kwargs)
@@ -1000,10 +1006,14 @@ def page_5():
         ax.set_title("Diagrama RRSB (transform)")
         ax.set_xlabel("Tamaño (µm) [escala log]")
         ax.set_ylabel("Log[ ln(1 / (1 - (%F/100)) ) ]")
-        # ajustar límites X para dar separación estética
+
+        # --- Ajuste dinámico de X ---
         xmin, xmax = np.min(xdata), np.max(xdata)
-        ax.set_xlim(xmin*0.8 if xmin>0 else xmin, xmax*1.2)
-        ax.grid(True, ls='--', alpha=0.5)
+        ax.set_xlim(xmin*0.8 if xmin > 0 else xmin, xmax*1.2)
+
+        # --- Grilla con secundarias ---
+        ax.grid(True, which='major', ls='--', alpha=0.5)
+        ax.grid(True, which='minor', ls=':', alpha=0.3)
 
     elif graf_option == "Diagrama DW (decimal)":
         # Curva DW primero
@@ -1101,6 +1111,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
