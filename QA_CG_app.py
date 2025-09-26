@@ -643,18 +643,57 @@ def page_4():
                     st.table(folk_tbl.style.format({'Valor':'{:.3f}'}))
                 with col_interp:
                     st.subheader("Interpretación Folk & Ward")
-                    if sigmaI < 0.5:
-                        disp_comment = f"σ = {sigmaI:.3f}: muestra **bien seleccionada** (poco dispersa)."
-                    elif sigmaI < 1.0:
-                        disp_comment = f"σ = {sigmaI:.3f}: muestra **moderadamente seleccionada**."
-                    else:
-                        disp_comment = f"σ = {sigmaI:.3f}: muestra **pobremente seleccionada** (amplia dispersión)."
-                    skew_comment = f"Sk = {SkI:.3f}: " + ("sesgo hacia partículas gruesas." if SkI < 0 else "sesgo hacia partículas finas.")
-                    kurt_comment = f"K = {KG:.3f}: " + ("leptocúrtica (pico agudo)." if KG > 1.2 else ("platicúrtica (pico bajo)." if KG < 0.8 else "mesocúrtica."))
 
-                    st.write("- " + disp_comment)
+                    # Media
+                    if M < 0:
+                        mean_comment = f"M = {M:.3f} φ → predominan partículas muy gruesas."
+                    elif M < 1:
+                        mean_comment = f"M = {M:.3f} φ → predominan partículas gruesas."
+                    elif M < 2:
+                        mean_comment = f"M = {M:.3f} φ → predominan partículas de tamaño medio."
+                    elif M < 3:
+                        mean_comment = f"M = {M:.3f} φ → predominan partículas finas."
+                    elif M < 4:
+                        mean_comment = f"M = {M:.3f} φ → predominan partículas muy finas."
+                    else:
+                        mean_comment = f"M = {M:.3f} φ → predominan finos (limo o arcilla)."
+
+                    # Dispersión (σ)
+                    if sigmaI < 0.35:
+                        sigma_comment = f"σ = {sigmaI:.3f} → granulometría homogénea, distribución granulométrica uniforme (espectro muy estrecho)."
+                    elif sigmaI < 0.50:
+                        sigma_comment = f"σ = {sigmaI:.3f} → granulometría relativamente homogénea (espectro estrecho)."
+                    elif sigmaI < 0.71:
+                        sigma_comment = f"σ = {sigmaI:.3f} → granulometría moderada (espectro moderadamente estrecho)."
+                    elif sigmaI < 1.00:
+                        sigma_comment = f"σ = {sigmaI:.3f} → granulometría heterogénea moderada (espectro intermedio)."
+                    elif sigmaI < 2.00:
+                        sigma_comment = f"σ = {sigmaI:.3f} → granulometría heterogénea (espectro granulométrico amplio)."
+                    else:
+                        sigma_comment = f"σ = {sigmaI:.3f} → granulometría muy heterogénea (espectro granulométrico muy amplio)."
+
+                    # Sesgo
+                    if SkI > 0:
+                        skew_comment = f"Sk = {SkI:.3f} → distribución sesgada hacia finos (exceso de partículas pequeñas)."
+                    elif SkI < 0:
+                        skew_comment = f"Sk = {SkI:.3f} → distribución sesgada hacia gruesos (exceso de partículas grandes)."
+                    else:
+                        skew_comment = f"Sk = {SkI:.3f} → distribución aproximadamente simétrica."
+
+                    # Curtosis
+                    if KG < 0.67:
+                        kurt_comment = f"K = {KG:.3f} → distribución platicúrtica (aplanada, indica mezcla de tamaños en amplio rango)."
+                    elif KG < 1.11:
+                        kurt_comment = f"K = {KG:.3f} → distribución mesocúrtica (curva normal, típica de molienda estándar)."
+                    else:
+                        kurt_comment = f"K = {KG:.3f} → distribución leptocúrtica (pico agudo, concentración de tamaños en torno a un valor, control granulométrico preciso)."
+
+                    # Mostrar
+                    st.write("- " + mean_comment)
+                    st.write("- " + sigma_comment)
                     st.write("- " + skew_comment)
                     st.write("- " + kurt_comment)
+
         except Exception as e:
             st.warning("No se pueden calcular Folk & Ward: " + str(e))
 
@@ -948,6 +987,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
