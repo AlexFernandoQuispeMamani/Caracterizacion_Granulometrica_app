@@ -308,123 +308,148 @@ def page_2():
 
 # ---------- PÁGINA 3: Análisis granulométrico (Resultados) ----------
 def page_3():
-    st.title("ANÁLISIS GRANULOMÉTRICO")
-    results = st.session_state.results_table.copy()
-    if results.empty:
-        st.error("No hay resultados calculados. Vuelve a la página de Datos Experimentales y pulsa EJECUTAR.")
-        if st.button("Regresar a DATOS EXPERIMENTALES"):
-            st.session_state.page = 2
-            st.rerun()
-        return
+    st.markdown("## 📊 Gráficos Granulométricos")
 
-    # Formato de tabla
-    fmt = {}
-    for c in results.columns:
-        if c in ['Peso (g)', '%Peso', '%F(d)', '%R(d)', 'Tamaño promedio (µm)', 'Tamaño inferior (µm)', 'Tamaño superior (µm)']:
-            fmt[c] = "{:.2f}"
-        else:
-            fmt[c] = "{}"
-    st.markdown("**Tabla de resultados** (última fila = TOTAL).")
-    st.dataframe(results.style.format(fmt), height=320)
+    # --- Selección de opciones ---
+    grafico = st.selectbox(
+        "Seleccione el gráfico a mostrar",
+        [
+            "Histograma de frecuencia",
+            "Diagrama de simple distribución",
+            "Diagrama Acumulativo de Subtamaño",
+            "Diagrama Acumulativo de Sobretamaño",
+            "Diagrama Acumulativo (Combinación)",
+            "Curvas granulométricas (Combinación 2,3,4)"
+        ]
+    )
 
-    # Selección de gráfico y escala
-    st.markdown("**Seleccione gráfico**")
-    grafico = st.selectbox("SELECCIONE GRÁFICO", [
-        "Histograma de frecuencia",
-        "Diagrama de simple distribución",
-        "Diagrama Acumulativo de Subtamaño",
-        "Diagrama Acumulativo de Sobretamaño",
-        "Diagrama Acumulativo (Combinación)",
-        "Curvas granulométricas (Combinación 2,3,4)"
-    ], index=0, key='grafico_select')
+    escala = st.selectbox(
+        "Seleccione la escala de los ejes",
+        [
+            "Escala decimal",
+            "Escala semilogarítmica (X log)",
+            "Escala logarítmica (ambos log)"
+        ]
+    )
 
-    escala = st.selectbox("Escala", ["Escala decimal", "Escala semilogarítmica (X log)", "Escala logarítmica (ambos log)"], index=0, key='escala_select')
+    lw = 1.2  # grosor de línea
 
-    # Datos para gráficas
-    plot_df = results.iloc[:-1].copy()
-    plot_df = plot_df[plot_df['Tamaño inferior (µm)'].notna()]
-
-    x_inf = plot_df['Tamaño inferior (µm)'].replace(0, np.nan)
-    x_avg = plot_df['Tamaño promedio (µm)'].replace(0, np.nan)
-    y_pct = plot_df['%Peso']
-    yf = plot_df['%F(d)'].abs()
-    yr = plot_df['%R(d)'].abs()
-
-    fig, ax = plt.subplots(figsize=(9, 4))
-    fig.patch.set_facecolor('#e6e6e6')
-    ax.set_facecolor('white')
-
-    lw = 0.9
-    ms = 6
+    fig, ax = plt.subplots(figsize=(6.5, 4.8))
 
     # --- Graficar según selección ---
     if grafico == "Histograma de frecuencia":
-        width = (np.nanmax(x_avg)/len(x_avg) if len(x_avg) > 0 else 1)
-        ax.bar(x_avg, y_pct, width=width, color='white', edgecolor='k', linewidth=0.9)
+        width = (np.nanmax(x_avg) / len(x_avg) if len(x_avg) > 0 else 1)
+        ax.bar(
+            x_avg, y_pct, width=width,
+            color='white', edgecolor='k',
+            linewidth=0.9, hatch='..'
+        )
         ax.set_xlabel("Tamaño promedio (µm)")
         ax.set_ylabel("%Peso")
 
     elif grafico == "Diagrama de simple distribución":
-        ax.scatter(x_inf, y_pct, s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4)
+        ax.scatter(
+            x_inf, y_pct, s=48,
+            linewidths=0.9, edgecolors='k',
+            facecolors='white', zorder=4
+        )
         ax.plot(x_inf, y_pct, color='k', linewidth=lw)
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("%Peso")
 
     elif grafico == "Diagrama Acumulativo de Subtamaño":
-        ax.scatter(x_inf, yf, s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4)
+        ax.scatter(
+            x_inf, yf, s=48,
+            linewidths=0.9, edgecolors='k',
+            facecolors='white', zorder=4
+        )
         ax.plot(x_inf, yf, color='k', linewidth=lw)
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("%F(d)")
 
     elif grafico == "Diagrama Acumulativo de Sobretamaño":
-        ax.scatter(x_inf, yr, marker='x', s=48, linewidths=1.0, edgecolors='k', facecolors='white', zorder=4)
+        ax.scatter(
+            x_inf, yr, marker='x', s=48,
+            linewidths=1.0, edgecolors='k',
+            facecolors='white', zorder=4
+        )
         ax.plot(x_inf, yr, color='k', linewidth=lw)
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("%R(d)")
 
     elif grafico == "Diagrama Acumulativo (Combinación)":
-        ax.scatter(x_inf, yf, s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4, label='%F(d)')
+        ax.scatter(
+            x_inf, yf, s=48, linewidths=0.9,
+            edgecolors='k', facecolors='white',
+            zorder=4, label='%F(d)'
+        )
         ax.plot(x_inf, yf, color='k', linewidth=lw)
-        ax.scatter(x_inf, yr, marker='x', s=48, linewidths=1.0, edgecolors='k', facecolors='white', zorder=4, label='%R(d)')
+
+        ax.scatter(
+            x_inf, yr, marker='x', s=48,
+            linewidths=1.0, edgecolors='k',
+            facecolors='white', zorder=4, label='%R(d)'
+        )
         ax.plot(x_inf, yr, color='k', linewidth=lw)
+
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("Porcentaje")
         ax.legend()
 
     else:  # Curvas granulométricas (Combinación 2,3,4)
-        ax.scatter(x_inf, y_pct, marker='^', s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4, label='%Peso')
+        ax.scatter(
+            x_inf, y_pct, marker='^', s=48,
+            linewidths=0.9, edgecolors='k',
+            facecolors='white', zorder=4, label='%Peso'
+        )
         ax.plot(x_inf, y_pct, color='k', linewidth=lw)
-        ax.scatter(x_inf, yf, marker='o', s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4, label='%F(d)')
+
+        ax.scatter(
+            x_inf, yf, marker='o', s=48,
+            linewidths=0.9, edgecolors='k',
+            facecolors='white', zorder=4, label='%F(d)'
+        )
         ax.plot(x_inf, yf, color='k', linewidth=lw)
-        ax.scatter(x_inf, yr, marker='x', s=48, linewidths=1.0, edgecolors='k', facecolors='white', zorder=4, label='%R(d)')
+
+        ax.scatter(
+            x_inf, yr, marker='x', s=48,
+            linewidths=1.0, edgecolors='k',
+            facecolors='white', zorder=4, label='%R(d)'
+        )
         ax.plot(x_inf, yr, color='k', linewidth=lw)
+
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("Porcentaje")
         ax.legend()
 
     # --- Ajuste de ejes ---
-    ax.set_xlim(0, np.nanmax(x_inf)*1.05 if len(x_inf)>0 else 1)
-
     if escala == "Escala logarítmica (ambos log)":
         ax.set_xscale('log')
         ax.set_yscale('log')
-        # Y mínimo positivo y máximo extendido
+
+        # límites adaptativos log-log
         y_comb = np.concatenate([y_pct.values, yf.values, yr.values])
         y_comb = y_comb[y_comb > 0]
-        y_min = np.min(y_comb) * 0.5 if len(y_comb)>0 else 1e-2
-        y_max = np.max(y_comb) * 1.2 if len(y_comb)>0 else 100
-        ax.set_ylim(y_min, y_max)
+        x_comb = x_inf.values[x_inf.values > 0]
+
+        if len(x_comb) > 0 and len(y_comb) > 0:
+            ax.set_xlim(np.min(x_comb) * 0.8, np.max(x_comb) * 1.2)
+            ax.set_ylim(np.min(y_comb) * 0.8, np.max(y_comb) * 1.2)
+
         ax.grid(True, which='both', ls='--', alpha=0.5)
+
     else:
+        ax.set_xlim(0, np.nanmax(x_inf) * 1.05 if len(x_inf) > 0 else 1)
         ax.set_ylim(0, 100)
         ax.set_yticks(np.arange(0, 101, 10))
+
         if escala == "Escala semilogarítmica (X log)":
             ax.set_xscale('log')
+
         ax.grid(True, which='both', ls='--', alpha=0.5)
 
-    ax.set_title(grafico)
     st.pyplot(fig)
-
+    
     # --- Navegación ---
     col1, col2 = st.columns(2)
     with col1:
@@ -1147,6 +1172,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
