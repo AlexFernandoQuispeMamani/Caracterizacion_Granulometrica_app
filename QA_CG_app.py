@@ -310,6 +310,31 @@ def page_2():
 def page_3():
     st.markdown("## 📊 Gráficos Granulométricos")
 
+    # Recuperar los datos desde session_state (que guardaste en page_2)
+    if "df" not in st.session_state or st.session_state.df.empty:
+        st.warning("⚠️ Primero ingrese los datos en la página 2.")
+        return
+
+    df = st.session_state.df.copy()
+
+    # --- Cálculos ---
+    # Tamaños promedio de malla
+    x_inf = df["Tamaño (µm)"].values
+    peso = df["Peso retenido (g)"].values
+    total = np.sum(peso)
+
+    # % retenido
+    y_pct = (peso / total) * 100 if total > 0 else np.zeros_like(peso)
+
+    # % acumulado retenido
+    yr = np.cumsum(y_pct)
+
+    # % acumulado pasante
+    yf = 100 - yr
+
+    # Promedio de intervalos (para histograma)
+    x_avg = (x_inf[:-1] + x_inf[1:]) / 2 if len(x_inf) > 1 else x_inf
+
     # --- Selección de opciones ---
     grafico = st.selectbox(
         "Seleccione el gráfico a mostrar",
@@ -333,14 +358,13 @@ def page_3():
     )
 
     lw = 1.2  # grosor de línea
-
     fig, ax = plt.subplots(figsize=(6.5, 4.8))
 
     # --- Graficar según selección ---
     if grafico == "Histograma de frecuencia":
         width = (np.nanmax(x_avg) / len(x_avg) if len(x_avg) > 0 else 1)
         ax.bar(
-            x_avg, y_pct, width=width,
+            x_avg, y_pct[:-1], width=width,
             color='white', edgecolor='k',
             linewidth=0.9, hatch='..'
         )
@@ -428,9 +452,9 @@ def page_3():
         ax.set_yscale('log')
 
         # límites adaptativos log-log
-        y_comb = np.concatenate([y_pct.values, yf.values, yr.values])
+        y_comb = np.concatenate([y_pct, yf, yr])
         y_comb = y_comb[y_comb > 0]
-        x_comb = x_inf.values[x_inf.values > 0]
+        x_comb = x_inf[x_inf > 0]
 
         if len(x_comb) > 0 and len(y_comb) > 0:
             ax.set_xlim(np.min(x_comb) * 0.8, np.max(x_comb) * 1.2)
@@ -449,7 +473,7 @@ def page_3():
         ax.grid(True, which='both', ls='--', alpha=0.5)
 
     st.pyplot(fig)
-    
+
     # --- Navegación ---
     col1, col2 = st.columns(2)
     with col1:
@@ -1172,6 +1196,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
