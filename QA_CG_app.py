@@ -351,12 +351,11 @@ def page_3():
     yr = plot_df['%R(d)'].abs()
 
     fig, ax = plt.subplots(figsize=(9, 4))
-    fig.patch.set_facecolor('#e6e6e6')  # Área externa
-    ax.set_facecolor('white')           # Área del gráfico
+    fig.patch.set_facecolor('#e6e6e6')
+    ax.set_facecolor('white')
 
     lw = 0.9
     ms = 6
-    marker_kwargs = dict(marker='o', s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4)
 
     # --- Graficar según selección ---
     if grafico == "Histograma de frecuencia":
@@ -366,52 +365,54 @@ def page_3():
         ax.set_ylabel("%Peso")
 
     elif grafico == "Diagrama de simple distribución":
-        ax.scatter(x_inf, y_pct, **marker_kwargs)
+        ax.scatter(x_inf, y_pct, s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4)
         ax.plot(x_inf, y_pct, color='k', linewidth=lw)
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("%Peso")
 
     elif grafico == "Diagrama Acumulativo de Subtamaño":
-        ax.scatter(x_inf, yf, **marker_kwargs)
+        ax.scatter(x_inf, yf, s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4)
         ax.plot(x_inf, yf, color='k', linewidth=lw)
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("%F(d)")
 
     elif grafico == "Diagrama Acumulativo de Sobretamaño":
-        ax.scatter(x_inf, yr, **marker_kwargs)
+        ax.scatter(x_inf, yr, marker='x', s=48, linewidths=1.0, edgecolors='k', facecolors='white', zorder=4)
         ax.plot(x_inf, yr, color='k', linewidth=lw)
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("%R(d)")
 
     elif grafico == "Diagrama Acumulativo (Combinación)":
-        ax.scatter(x_inf, yf, **marker_kwargs)
-        ax.plot(x_inf, yf, color='k', linewidth=lw, label='%F(d)')
-        ax.scatter(x_inf, yr, marker='s', s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4)
-        ax.plot(x_inf, yr, color='k', linewidth=lw, label='%R(d)')
+        ax.scatter(x_inf, yf, s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4, label='%F(d)')
+        ax.plot(x_inf, yf, color='k', linewidth=lw)
+        ax.scatter(x_inf, yr, marker='x', s=48, linewidths=1.0, edgecolors='k', facecolors='white', zorder=4, label='%R(d)')
+        ax.plot(x_inf, yr, color='k', linewidth=lw)
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("Porcentaje")
         ax.legend()
 
-    else:  # Curvas granulométricas
-        ax.scatter(x_inf, y_pct, marker='^', **marker_kwargs)
-        ax.plot(x_inf, y_pct, color='k', linewidth=lw, label='%Peso')
-        ax.scatter(x_inf, yf, **marker_kwargs)
-        ax.plot(x_inf, yf, color='k', linewidth=lw, label='%F(d)')
-        ax.scatter(x_inf, yr, marker='s', s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4)
-        ax.plot(x_inf, yr, color='k', linewidth=lw, label='%R(d)')
+    else:  # Curvas granulométricas (Combinación 2,3,4)
+        ax.scatter(x_inf, y_pct, marker='^', s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4, label='%Peso')
+        ax.plot(x_inf, y_pct, color='k', linewidth=lw)
+        ax.scatter(x_inf, yf, marker='o', s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4, label='%F(d)')
+        ax.plot(x_inf, yf, color='k', linewidth=lw)
+        ax.scatter(x_inf, yr, marker='x', s=48, linewidths=1.0, edgecolors='k', facecolors='white', zorder=4, label='%R(d)')
+        ax.plot(x_inf, yr, color='k', linewidth=lw)
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("Porcentaje")
         ax.legend()
 
     # --- Ajuste de ejes ---
     ax.set_xlim(0, np.nanmax(x_inf)*1.05 if len(x_inf)>0 else 1)
+
     if escala == "Escala logarítmica (ambos log)":
         ax.set_xscale('log')
         ax.set_yscale('log')
-        # Para log-log, definir Y mínimo y máximo según datos positivos
-        y_pos = np.concatenate([yf.values, yr.values, y_pct.values])
-        y_min = np.min(y_pos[y_pos>0])*0.8
-        y_max = np.max(y_pos)*1.2
+        # Y mínimo positivo y máximo extendido
+        y_comb = np.concatenate([y_pct.values, yf.values, yr.values])
+        y_comb = y_comb[y_comb > 0]
+        y_min = np.min(y_comb) * 0.5 if len(y_comb)>0 else 1e-2
+        y_max = np.max(y_comb) * 1.2 if len(y_comb)>0 else 100
         ax.set_ylim(y_min, y_max)
         ax.grid(True, which='both', ls='--', alpha=0.5)
     else:
@@ -1146,6 +1147,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
