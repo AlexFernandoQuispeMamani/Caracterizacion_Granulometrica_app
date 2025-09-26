@@ -582,7 +582,14 @@ def page_4():
 
     # Sección 3: Folk & Ward
     st.header("ESTADÍSTICOS SEGÚN FOLK & WARD")
-    st.markdown("Folk & Ward (1957): se calculan parámetros de tendencia central y dispersión (M, Md, σ, Sk, K).")
+    st.markdown("""
+    **Folk & Ward (1957):** se calculan parámetros de tendencia central y dispersión (M, Md, σ, Sk, K).  
+    Se utiliza la **escala phi (φ)**, que corresponde a una transformación logarítmica negativa de los tamaños de partícula en milímetros:
+
+    φ = –log₂(d [mm])  
+
+    Esta escala permite comparar distribuciones granulométricas de manera estandarizada, ya que convierte los tamaños (que cubren varios órdenes de magnitud) en una escala lineal en términos estadísticos.  
+    """)
 
     if st.button("ESTIMAR"):
         try:
@@ -606,12 +613,14 @@ def page_4():
                     # Reordenar por percentil para evitar problemas de grabación desordenada
                     ds = dict(sorted(ds.items(), key=lambda kv: kv[0]))
 
+                    # Convertir a mm y luego a escala phi
                     ds_mm = {p: ds[p]/1000.0 for p in ds}
                     for p in ds_mm:
                         if ds_mm[p] <= 0:
                             raise ValueError("Valores de tamaño no positivos para convertir a phi.")
                     phi = {p: -np.log2(ds_mm[p]) for p in ds_mm}
 
+                    # Cálculos Folk & Ward (usando fórmulas manuales)
                     M = (phi[16] + phi[50] + phi[84]) / 3.0
                     Md = phi[50]
                     sigmaI = ((phi[84] - phi[16]) / 4.0) + ((phi[95] - phi[5]) / 6.6)
@@ -619,80 +628,69 @@ def page_4():
                           ((phi[5] + phi[95] - 2*phi[50]) / (2*(phi[95]-phi[5])))
                     KG = (phi[95] - phi[5]) / (2.44 * (phi[75] - phi[25]))
 
-                ds_mm = {p: ds[p]/1000.0 for p in ds}
-                for p in ds_mm:
-                    if ds_mm[p] <= 0:
-                        raise ValueError("Valores de tamaño no positivos para convertir a phi.")
-                phi = {p: -np.log2(ds_mm[p]) for p in ds_mm}
+                    # Tabla sin índice
+                    folk_tbl = pd.DataFrame({
+                        'Parámetro':['M (φ)','Md (φ)','σ (φ)','Sk (φ)','K (φ)'],
+                        'Valor':[M, Md, sigmaI, SkI, KG]
+                    })
 
-                M = (phi[16] + phi[50] + phi[84]) / 3.0
-                Md = phi[50]
-                sigmaI = ((phi[84] - phi[16]) / 4.0) + ((phi[95] - phi[5]) / 6.6)
-                SkI = ((phi[16] + phi[84] - 2*phi[50]) / (2*(phi[84]-phi[16]))) + \
-                      ((phi[5] + phi[95] - 2*phi[50]) / (2*(phi[95]-phi[5])))
-                KG = (phi[95] - phi[5]) / (2.44 * (phi[75] - phi[25]))
+                    col_tbl, col_interp = st.columns([1,1])
+                    with col_tbl:
+                        st.subheader("Tabla Folk & Ward")
+                        st.table(folk_tbl.set_index('Parámetro').style.format({'Valor':'{:.3f}'}))
 
-                folk_tbl = pd.DataFrame({
-                    'Parámetro':['M (phi)','Md (phi)','σ (phi)','Sk (phi)','K (phi)'],
-                    'Valor':[M, Md, sigmaI, SkI, KG]
-                })
+                    with col_interp:
+                        st.subheader("Interpretación Folk & Ward")
 
-                col_tbl, col_interp = st.columns([1,1])
-                with col_tbl:
-                    st.subheader("Tabla Folk & Ward")
-                    st.table(folk_tbl.style.format({'Valor':'{:.3f}'}))
-                with col_interp:
-                    st.subheader("Interpretación Folk & Ward")
+                        # Media
+                        if M < 0:
+                            mean_comment = f"M = {M:.3f} φ → predominan partículas muy gruesas."
+                        elif M < 1:
+                            mean_comment = f"M = {M:.3f} φ → predominan partículas gruesas."
+                        elif M < 2:
+                            mean_comment = f"M = {M:.3f} φ → predominan partículas de tamaño medio."
+                        elif M < 3:
+                            mean_comment = f"M = {M:.3f} φ → predominan partículas finas."
+                        elif M < 4:
+                            mean_comment = f"M = {M:.3f} φ → predominan partículas muy finas."
+                        else:
+                            mean_comment = f"M = {M:.3f} φ → predominan finos (limo o arcilla)."
 
-                    # Media
-                    if M < 0:
-                        mean_comment = f"M = {M:.3f} φ → predominan partículas muy gruesas."
-                    elif M < 1:
-                        mean_comment = f"M = {M:.3f} φ → predominan partículas gruesas."
-                    elif M < 2:
-                        mean_comment = f"M = {M:.3f} φ → predominan partículas de tamaño medio."
-                    elif M < 3:
-                        mean_comment = f"M = {M:.3f} φ → predominan partículas finas."
-                    elif M < 4:
-                        mean_comment = f"M = {M:.3f} φ → predominan partículas muy finas."
-                    else:
-                        mean_comment = f"M = {M:.3f} φ → predominan finos (limo o arcilla)."
+                        # Dispersión (σ)
+                        if sigmaI < 0.35:
+                            sigma_comment = f"σ = {sigmaI:.3f} → granulometría homogénea, distribución uniforme (espectro muy estrecho)."
+                        elif sigmaI < 0.50:
+                            sigma_comment = f"σ = {sigmaI:.3f} → granulometría relativamente homogénea (espectro estrecho)."
+                        elif sigmaI < 0.71:
+                            sigma_comment = f"σ = {sigmaI:.3f} → granulometría moderada (espectro moderadamente estrecho)."
+                        elif sigmaI < 1.00:
+                            sigma_comment = f"σ = {sigmaI:.3f} → granulometría heterogénea moderada (espectro intermedio)."
+                        elif sigmaI < 2.00:
+                            sigma_comment = f"σ = {sigmaI:.3f} → granulometría heterogénea (espectro amplio)."
+                        else:
+                            sigma_comment = f"σ = {sigmaI:.3f} → granulometría muy heterogénea (espectro muy amplio)."
 
-                    # Dispersión (σ)
-                    if sigmaI < 0.35:
-                        sigma_comment = f"σ = {sigmaI:.3f} → granulometría homogénea, distribución granulométrica uniforme (espectro muy estrecho)."
-                    elif sigmaI < 0.50:
-                        sigma_comment = f"σ = {sigmaI:.3f} → granulometría relativamente homogénea (espectro estrecho)."
-                    elif sigmaI < 0.71:
-                        sigma_comment = f"σ = {sigmaI:.3f} → granulometría moderada (espectro moderadamente estrecho)."
-                    elif sigmaI < 1.00:
-                        sigma_comment = f"σ = {sigmaI:.3f} → granulometría heterogénea moderada (espectro intermedio)."
-                    elif sigmaI < 2.00:
-                        sigma_comment = f"σ = {sigmaI:.3f} → granulometría heterogénea (espectro granulométrico amplio)."
-                    else:
-                        sigma_comment = f"σ = {sigmaI:.3f} → granulometría muy heterogénea (espectro granulométrico muy amplio)."
+                        # Sesgo
+                        if SkI > 0:
+                            skew_comment = f"Sk = {SkI:.3f} → distribución sesgada hacia finos (exceso de partículas pequeñas)."
+                        elif SkI < 0:
+                            skew_comment = f"Sk = {SkI:.3f} → distribución sesgada hacia gruesos (exceso de partículas grandes)."
+                        else:
+                            skew_comment = f"Sk = {SkI:.3f} → distribución aproximadamente simétrica."
 
-                    # Sesgo
-                    if SkI > 0:
-                        skew_comment = f"Sk = {SkI:.3f} → distribución sesgada hacia finos (exceso de partículas pequeñas)."
-                    elif SkI < 0:
-                        skew_comment = f"Sk = {SkI:.3f} → distribución sesgada hacia gruesos (exceso de partículas grandes)."
-                    else:
-                        skew_comment = f"Sk = {SkI:.3f} → distribución aproximadamente simétrica."
+                        # Curtosis
+                        if KG < 0.67:
+                            kurt_comment = f"K = {KG:.3f} → distribución platicúrtica (aplanada, mezcla amplia de tamaños)."
+                        elif KG < 1.11:
+                            kurt_comment = f"K = {KG:.3f} → distribución mesocúrtica (curva normal, típica de molienda estándar)."
+                        else:
+                            kurt_comment = f"K = {KG:.3f} → distribución leptocúrtica (pico agudo, concentración de tamaños, control granulométrico preciso)."
 
-                    # Curtosis
-                    if KG < 0.67:
-                        kurt_comment = f"K = {KG:.3f} → distribución platicúrtica (aplanada, indica mezcla de tamaños en amplio rango)."
-                    elif KG < 1.11:
-                        kurt_comment = f"K = {KG:.3f} → distribución mesocúrtica (curva normal, típica de molienda estándar)."
-                    else:
-                        kurt_comment = f"K = {KG:.3f} → distribución leptocúrtica (pico agudo, concentración de tamaños en torno a un valor, control granulométrico preciso)."
-
-                    # Mostrar
-                    st.write("- " + mean_comment)
-                    st.write("- " + sigma_comment)
-                    st.write("- " + skew_comment)
-                    st.write("- " + kurt_comment)
+                        # Mostrar interpretaciones
+                        st.write("- " + mean_comment)
+                        st.write("- " + sigma_comment)
+                        st.write("- " + skew_comment)
+                        st.write("- " + kurt_comment)
 
         except Exception as e:
             st.warning("No se pueden calcular Folk & Ward: " + str(e))
@@ -707,6 +705,7 @@ def page_4():
         if st.button("SIGUIENTE"):
             st.session_state.page = 5
             st.rerun()
+
             
 # ---------- MODELOS (GGS, RRSB, Doble Weibull) ----------
 def GGS_model(d, m, Dm):
@@ -987,6 +986,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
