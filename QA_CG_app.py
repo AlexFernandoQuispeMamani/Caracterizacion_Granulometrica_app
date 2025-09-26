@@ -921,13 +921,9 @@ def page_5():
     y_rrsb_plot = np.clip(RRSB_model(dd, *rrsb_params), None, 100.0) if not np.isnan(rrsb_params).any() else None
     y_dw_plot = np.clip(double_weibull(dd, *dw_params), None, 100.0) if not np.isnan(dw_params).any() else None
 
-    # Predicciones en los puntos experimentales (para tabla comparativa ya usaste; aquí opcional)
-    y_ggs_pts = np.clip(GGS_model(xdata, *ggs_params), None, 100.0) if not np.isnan(ggs_params).any() else None
-    y_rrsb_pts = np.clip(RRSB_model(xdata, *rrsb_params), None, 100.0) if not np.isnan(rrsb_params).any() else None
-    y_dw_pts = np.clip(double_weibull(xdata, *dw_params), None, 100.0) if not np.isnan(dw_params).any() else None
-
     # Estilo de puntos experimentales: fondo blanco, borde negro
-    marker_kwargs = dict(marker='o', s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4)
+    marker_kwargs = dict(marker='o', s=48, linewidths=0.9,
+                         edgecolors='k', facecolors='white', zorder=4)
 
     # Estilos de línea (todas negras, distintos linestyle)
     line_styles = {
@@ -942,20 +938,28 @@ def page_5():
                                 "Diagrama GGS (log-log)",
                                 "Diagrama RRSB (log-x, transform y)",
                                 "Diagrama DW (decimal)"])
+
     fig, ax = plt.subplots(figsize=(8,4))
+
+    # Fondos: exterior gris, interior blanco
+    fig.patch.set_facecolor("lightgrey")  # exterior (área de escalas y labels)
+    ax.set_facecolor("white")             # interior (área de curvas y puntos)
 
     if graf_option == "Comparación de perfiles":
         # Dibujar curvas de modelos primero (si existen), cada una con su linestyle
         if y_ggs_plot is not None:
-            ax.plot(dd, y_ggs_plot, linestyle=line_styles['GGS']['linestyle'], **line_common, label=f"GGS ({line_styles['GGS']['linestyle']})")
+            ax.plot(dd, y_ggs_plot, linestyle=line_styles['GGS']['linestyle'],
+                    **line_common, label="GGS")
         if y_rrsb_plot is not None:
-            ax.plot(dd, y_rrsb_plot, linestyle=line_styles['RRSB']['linestyle'], **line_common, label=f"RRSB ({line_styles['RRSB']['linestyle']})")
+            ax.plot(dd, y_rrsb_plot, linestyle=line_styles['RRSB']['linestyle'],
+                    **line_common, label="RRSB")
         if y_dw_plot is not None:
-            ax.plot(dd, y_dw_plot, linestyle=line_styles['DW']['linestyle'], **line_common, label=f"DW ({line_styles['DW']['linestyle']})")
+            ax.plot(dd, y_dw_plot, linestyle=line_styles['DW']['linestyle'],
+                    **line_common, label="DW")
 
         # Luego dibujar puntos experimentales (sobre las curvas)
         ax.scatter(xdata, ydata, **marker_kwargs)
-
+        
         ax.set_title("Comparación de perfiles")
         ax.set_xlabel("Tamaño (µm)")
         ax.set_ylabel("%F(d)")
@@ -967,18 +971,18 @@ def page_5():
 
     elif graf_option == "Diagrama GGS (log-log)":
         ax.set_xscale('log'); ax.set_yscale('log')
-        # Curva GGS (trazamos primero)
+        # Curva GGS primero
         if y_ggs_plot is not None:
             ax.plot(dd, np.clip(y_ggs_plot, 1e-6, 100.0),
                     linestyle=line_styles['GGS']['linestyle'], **line_common)
-        # Puntos experimentales (dibujados sobre la curva)
+        # Puntos experimentales encima
         ax.scatter(xdata, np.clip(ydata, 1e-6, 100.0), **marker_kwargs)
 
         ax.set_title("Diagrama GGS (log-log)")
         ax.set_xlabel("Tamaño (µm) [escala log]")
         ax.set_ylabel("%F(d) [escala log]")
 
-        # --- Ajuste de límites dinámico ---
+        # --- Ajuste dinámico de límites ---
         xmin, xmax = np.min(xdata), np.max(xdata)
         ymin, ymax = np.min(ydata[ydata > 0]), np.max(ydata)
         ax.set_xlim(xmin*0.8 if xmin > 0 else xmin, xmax*1.2)
@@ -994,12 +998,12 @@ def page_5():
             y = np.minimum(99.9999, np.maximum(1e-8, y_percent))
             return np.log(np.log(1.0 / (1.0 - (y / 100.0))))
 
-        # Curva del modelo (RRSB) transformada: plotear primero (si existe)
+        # Curva RRSB primero
         if y_rrsb_plot is not None:
             y_rrsb_trans = transform_rrsb(y_rrsb_plot)
             ax.plot(dd, y_rrsb_trans, linestyle=line_styles['RRSB']['linestyle'], **line_common)
 
-        # Puntos experimentales transformados y dibujados encima
+        # Puntos experimentales encima
         ydata_trans = transform_rrsb(ydata)
         ax.scatter(xdata, ydata_trans, **marker_kwargs)
 
@@ -1007,11 +1011,11 @@ def page_5():
         ax.set_xlabel("Tamaño (µm) [escala log]")
         ax.set_ylabel("Log[ ln(1 / (1 - (%F/100)) ) ]")
 
-        # --- Ajuste dinámico de X ---
+        # Ajuste X dinámico
         xmin, xmax = np.min(xdata), np.max(xdata)
         ax.set_xlim(xmin*0.8 if xmin > 0 else xmin, xmax*1.2)
 
-        # --- Grilla con secundarias ---
+        # Grilla con secundarias
         ax.grid(True, which='major', ls='--', alpha=0.5)
         ax.grid(True, which='minor', ls=':', alpha=0.3)
 
@@ -1030,7 +1034,7 @@ def page_5():
         ax.xaxis.set_major_locator(plt.MaxNLocator(8))
         ax.grid(True, ls='--', alpha=0.5)
 
-    # Mostrar figura (puntos siempre en primer plano)
+    # Mostrar figura
     st.pyplot(fig, use_container_width=True)
 
     # ------------------- Navegación -------------------
@@ -1041,7 +1045,6 @@ def page_5():
     with col2:
         if st.button("SIGUIENTE"):
             st.session_state.page = 6; st.rerun()
-
 
 # ---------- PÁGINA 6: Exportación ----------
 def page_6():
@@ -1111,6 +1114,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
