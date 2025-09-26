@@ -749,7 +749,6 @@ def double_weibull(d, alpha, k1, k2, d80):
     )
             
 # ---------- PÁGINA 5: Selección del Modelo ----------
-# ---------- PÁGINA 5: Selección del Modelo ----------
 def page_5():
     st.title("SELECCIÓN DEL MODELO")
     st.markdown("Ajuste de modelos: GGS, RRSB y Doble Weibull. Se estiman parámetros minimizando SSE (F.O.).")
@@ -926,7 +925,7 @@ def page_5():
             ax.plot(xdata, ydata, **exp_marker_kwargs, label='Experimental')
             if y_ggs is not None:
                 m, Dm = fits['GGS']['params']
-                ax.plot(dd, y_ggs, '-', label=f'GGS (m={m:.3f}, Dm={Dm:.3f})', linewidth=0.9)
+                ax.plot(dd, y_ggs, '-', label=f'GGS (m={m:.3f}, dmax={Dm:.3f})', linewidth=0.9)
             if y_rrsb is not None:
                 m2, l = fits['RRSB']['params']
                 ax.plot(dd, y_rrsb, '--', label=f'RRSB (m={m2:.3f}, l={l:.3f})', linewidth=0.9)
@@ -1065,6 +1064,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
