@@ -749,6 +749,7 @@ def double_weibull(d, alpha, k1, k2, d80):
     )
             
 # ---------- PÁGINA 5: Selección del Modelo ----------
+
 def page_5():
     st.title("SELECCIÓN DEL MODELO")
     st.markdown("Ajuste de modelos: GGS, RRSB y Doble Weibull. Se estiman parámetros minimizando SSE (F.O.).")
@@ -821,215 +822,153 @@ def page_5():
         }
         st.success("Ajustes completados.")
 
-    if st.session_state.get("models_fit", None):
-        fits = st.session_state.models_fit
+    # ----------- Recuperar parámetros desde session_state ---------
+    if not st.session_state.get("models_fit", None):
+        st.warning("Pulsa 'AJUSTAR' para estimar los parámetros de los modelos.")
+        return
 
-        # ------------------- TABLA COMPARATIVA ORIGINAL -------------------
-        table_data = []
-        for i in range(len(d)):
-            xi = d[i]
-            ye = y_exp[i]
-            row = {"Tamaño inferior (µm)": xi, "%F(d)e": ye}
+    fits = st.session_state.models_fit
+    ggs_params = fits['GGS']['params']
+    rrsb_params = fits['RRSB']['params']
+    dw_params = fits['DoubleWeibull']['params']
 
-            # GGS
-            if not np.isnan(fits['GGS']['params']).any():
-                m, dmax = fits['GGS']['params']
-                y_g = float(GGS_model([xi], m, dmax)[0])
-                y_g_clip = min(100.0, y_g)
-                row["%F(d)m_GGS"] = y_g_clip
-                row["ε²_GGS"] = ((ye - y_g_clip)/ye)**2 if ye !=0 else np.nan
-            else:
-                row["%F(d)m_GGS"] = np.nan
-                row["ε²_GGS"] = np.nan
+    # ------------------- TABLA COMPARATIVA ORIGINAL -------------------
+    table_data = []
+    for i in range(len(d)):
+        xi = d[i]; ye = y_exp[i]
+        row = {"Tamaño inferior (µm)": xi, "%F(d)e": ye}
 
-            # RRSB
-            if not np.isnan(fits['RRSB']['params']).any():
-                m2, l = fits['RRSB']['params']
-                y_r = float(RRSB_model([xi], m2, l)[0])
-                y_r_clip = min(100.0, y_r)
-                row["%F(d)m_RRSB"] = y_r_clip
-                row["ε²_RRSB"] = ((ye - y_r_clip)/ye)**2 if ye !=0 else np.nan
-            else:
-                row["%F(d)m_RRSB"] = np.nan
-                row["ε²_RRSB"] = np.nan
-
-            # Double Weibull
-            if not np.isnan(fits['DoubleWeibull']['params']).any():
-                alpha, k1, k2, d80 = fits['DoubleWeibull']['params']
-                y_dw = float(double_weibull([xi], alpha, k1, k2, d80)[0])
-                y_dw_clip = min(100.0, y_dw)
-                row["%F(d)m_DW"] = y_dw_clip
-                row["ε²_DW"] = ((ye - y_dw_clip)/ye)**2 if ye !=0 else np.nan
-            else:
-                row["%F(d)m_DW"] = np.nan
-                row["ε²_DW"] = np.nan
-
-            table_data.append(row)
-
-        df_comp = pd.DataFrame(table_data)
-        st.subheader("Tabla comparativa: Experimental vs Modelos")
-        st.dataframe(df_comp.style.format("{:.2f}"), height=320)
-
-        # ------------------- Tablas separadas de parámetros -------------------
-        def sum_errors_squared(y_model):
-            return np.sum(((y_exp - y_model)/y_exp)**2) if y_model is not None else np.nan
-
-        # Predicciones para cada modelo
-        y_ggs = y_rrsb = y_dw = None
-        if not np.isnan(fits['GGS']['params']).any():
-            m, dmax = fits['GGS']['params']
-            y_ggs = np.clip(GGS_model(d, m, dmax), None, 100.0)
-        if not np.isnan(fits['RRSB']['params']).any():
-            m2, l = fits['RRSB']['params']
-            y_rrsb = np.clip(RRSB_model(d, m2, l), None, 100.0)
-        if not np.isnan(fits['DoubleWeibull']['params']).any():
-            alpha, k1, k2, d80 = fits['DoubleWeibull']['params']
-            y_dw = np.clip(double_weibull(d, alpha, k1, k2, d80), None, 100.0)
-
-        # Tabla GGS
-        ggs_table = pd.DataFrame([{
-            'dmax (µm)': ggs_params[1],
-            'm': ggs_params[0],
-            'Σε²': sum_errors_squared(y_ggs),
-            'F.O.': fits['GGS']['FO']
-        }])
-        st.subheader("Parámetros GGS")
-        st.table(ggs_table.style.format("{:.4f}"))
-
-        # Tabla RRSB
-        rrsb_table = pd.DataFrame([{
-            'l (µm)': rrsb_params[1],
-            'm': rrsb_params[0],
-            'Σε²': sum_errors_squared(y_rrsb),
-            'F.O.': fits['RRSB']['FO']
-        }])
-        st.subheader("Parámetros RRSB")
-        st.table(rrsb_table.style.format("{:.4f}"))
-
-        # Tabla Doble Weibull
-        dw_table = pd.DataFrame([{
-            'α': dw_params[0],
-            'k1': dw_params[1],
-            'k2': dw_params[2],
-            'd80 (µm)': dw_params[3],
-            'Σε²': sum_errors_squared(y_dw),
-            'F.O.': fits['DoubleWeibull']['FO']
-        }])
-        st.subheader("Parámetros Doble Weibull")
-        st.table(dw_table.style.format("{:.4f}"))
-
-    # ------------------- Comparación de FO y gráficos -------------------
-    if st.session_state.models_fit:
-        fits = st.session_state.models_fit
-        fo_tbl = pd.DataFrame([
-            {'Modelo':'GGS','F.O.':fits['GGS']['FO']},
-            {'Modelo':'RRSB','F.O.':fits['RRSB']['FO']},
-            {'Modelo':'Doble Weibull','F.O.':fits['DoubleWeibull']['FO']}
-        ])
-        st.subheader("Comparación de funciones objetivo (F.O.)")
-        st.table(fo_tbl.style.format({'F.O.':'{:.6g}'}))
-
-        best = min(fits.items(), key=lambda x: x[1]['FO'])
-        best_model_name = best[0]
-        st.markdown(f"**Mejor modelo:** {best_model_name} con F.O. = {best[1]['FO']:.6g}")
-
-        # Gráficos
-        xdata = d
-        ydata = y_exp
-        dd = np.linspace(np.min(xdata), np.max(xdata), 500)
-        y_ggs = y_rrsb = y_dw = None
-        if not np.isnan(fits['GGS']['params']).any():
-            m, Dm = fits['GGS']['params']
-            y_ggs = np.clip(GGS_model(dd, m, Dm), None, 100.0)
-        if not np.isnan(fits['RRSB']['params']).any():
-            m2, l = fits['RRSB']['params']
-            y_rrsb = np.clip(RRSB_model(dd, m2, l), None, 100.0)
-        if not np.isnan(fits['DoubleWeibull']['params']).any():
-            alpha, k1, k2, d80 = fits['DoubleWeibull']['params']
-            y_dw = np.clip(double_weibull(dd, alpha, k1, k2, d80), None, 100.0)
-
-        exp_marker_kwargs = {'marker':'o', 'markersize':5, 'markeredgewidth':0.8,
-                             'markeredgecolor':'k', 'markerfacecolor':'white', 'linestyle':'None'}
-        graf_option = st.selectbox("Selecciona tipo de gráfica:",
-                                   ["Comparación de perfiles",
-                                    "Diagrama GGS (log-log)",
-                                    "Diagrama RRSB (log-x, transform y)",
-                                    "Diagrama DW (decimal)"])
-        fig, ax = plt.subplots(figsize=(8,4))
-
-        if graf_option == "Comparación de perfiles":
-            ax.plot(xdata, ydata, **exp_marker_kwargs, label='Experimental')
-            if y_ggs is not None:
-                m, Dm = fits['GGS']['params']
-                ax.plot(dd, y_ggs, '-', label=f'GGS (m={m:.3f}, dmax={Dm:.3f})', linewidth=0.9)
-            if y_rrsb is not None:
-                m2, l = fits['RRSB']['params']
-                ax.plot(dd, y_rrsb, '--', label=f'RRSB (m={m2:.3f}, l={l:.3f})', linewidth=0.9)
-            if y_dw is not None:
-                alpha, k1, k2, d80 = fits['DoubleWeibull']['params']
-                ax.plot(dd, y_dw, ':', label=f'DW (α={alpha:.3f},k1={k1:.3f},k2={k2:.3f},d80={d80:.2f})', linewidth=0.9)
-            ax.set_title("Comparación de perfiles")
-            ax.set_xlabel("Tamaño (µm)"); ax.set_ylabel("%F(d)")
-            ax.set_ylim(0,100); ax.set_yticks(np.arange(0,101,10))
-            ax.xaxis.set_major_locator(plt.MaxNLocator(8))
-            ax.grid(True, ls='--', alpha=0.5); ax.legend()
-
-        elif graf_option == "Diagrama GGS (log-log)":
-            ax.set_xscale('log'); ax.set_yscale('log')
-            ax.plot(xdata, np.clip(ydata,1e-6,100.0),'x', markersize=6, markeredgewidth=1.0, markeredgecolor='k', label='Experimental')
-            if y_ggs is not None:
-                ax.plot(dd, np.clip(y_ggs,1e-6,100.0), '-', linewidth=0.8, color='k', label='GGS')
-            ax.set_title("Diagrama GGS (log-log)")
-            ax.set_xlabel("Tamaño (µm) [escala log]"); ax.set_ylabel("%F(d) [escala log]")
-            ax.set_ylim(1e-6,100.0); ax.grid(True, which='both', ls='--', alpha=0.5); ax.legend()
-
-        elif graf_option == "Diagrama RRSB (log-x, transform y)":
-            ax.set_xscale('log'); ax.set_title("Diagrama RRSB")
-            ax.set_xlabel("Tamaño (µm) [escala log]")
-            ax.set_ylabel("Log[ ln(1 / (1 - (%F/100))) ]")
-            def transform_rrsb(y_percent):
-                y = np.minimum(99.9999, np.maximum(1e-8, y_percent))
-                return np.log(np.log(1.0 / (1.0 - (y / 100.0))))
-            ydata_trans = transform_rrsb(ydata)
-            ax.plot(xdata, ydata_trans, 'x', markersize=6, markeredgewidth=1.0, markeredgecolor='k', label='Experimental (transform)')
-            chosen_y = None; chosen_label=None
-            if y_rrsb is not None: chosen_y=y_rrsb; chosen_label='RRSB'
-            elif y_ggs is not None: chosen_y=y_ggs; chosen_label='GGS'
-            elif y_dw is not None: chosen_y=y_dw; chosen_label='DW'
-            if chosen_y is not None:
-                y_model_trans = transform_rrsb(chosen_y)
-                ax.plot(dd, y_model_trans, '-', linewidth=0.9, color='k', label=f'{chosen_label} (transform)')
-            ax.grid(True, ls='--', alpha=0.5); ax.legend()
-            if chosen_y is not None:
-                try:
-                    f_inv = interp1d(chosen_y, dd, fill_value="extrapolate", bounds_error=False)
-                    d63 = float(f_inv(63.2))
-                    st.info(f"d_63.2 = {d63:.4f} µm (interpolación/extrapolación sobre modelo seleccionado)")
-                except: pass
-
-        elif graf_option == "Diagrama DW (decimal)":
-            ax.plot(xdata, ydata, **exp_marker_kwargs, label='Experimental')
-            if y_dw is not None: ax.plot(dd, y_dw, '-', linewidth=0.9, label='Doble Weibull')
-            ax.set_title("Diagrama DW"); ax.set_xlabel("Tamaño (µm)"); ax.set_ylabel("%F(d)")
-            ax.set_ylim(0,100); ax.set_yticks(np.arange(0,101,10)); ax.xaxis.set_major_locator(plt.MaxNLocator(8))
-            ax.grid(True, ls='--', alpha=0.5); ax.legend()
-
-        st.pyplot(fig, use_container_width=True)
-        if best[1]['FO'] > 1e6:
-            st.warning("Ningún modelo representa bien los datos experimentales (F.O. muy grande).")
+        # GGS
+        if not np.isnan(ggs_params).any():
+            m, dmax = ggs_params
+            y_g = float(GGS_model([xi], m, dmax)[0])
+            y_g_clip = min(100.0, y_g)
+            row["%F(d)m_GGS"] = y_g_clip
+            row["ε²_GGS"] = ((ye - y_g_clip)/ye)**2 if ye !=0 else np.nan
         else:
-            st.success(f"El mejor modelo que representa los resultados experimentales es {best_model_name} (F.O. = {best[1]['FO']:.6g}).")
+            row["%F(d)m_GGS"] = np.nan; row["ε²_GGS"] = np.nan
 
-    # Navegación
+        # RRSB
+        if not np.isnan(rrsb_params).any():
+            m2, l = rrsb_params
+            y_r = float(RRSB_model([xi], m2, l)[0])
+            y_r_clip = min(100.0, y_r)
+            row["%F(d)m_RRSB"] = y_r_clip
+            row["ε²_RRSB"] = ((ye - y_r_clip)/ye)**2 if ye !=0 else np.nan
+        else:
+            row["%F(d)m_RRSB"] = np.nan; row["ε²_RRSB"] = np.nan
+
+        # Double Weibull
+        if not np.isnan(dw_params).any():
+            alpha, k1, k2, d80 = dw_params
+            y_dw = float(double_weibull([xi], alpha, k1, k2, d80)[0])
+            y_dw_clip = min(100.0, y_dw)
+            row["%F(d)m_DW"] = y_dw_clip
+            row["ε²_DW"] = ((ye - y_dw_clip)/ye)**2 if ye !=0 else np.nan
+        else:
+            row["%F(d)m_DW"] = np.nan; row["ε²_DW"] = np.nan
+
+        table_data.append(row)
+
+    df_comp = pd.DataFrame(table_data)
+    st.subheader("Tabla comparativa: Experimental vs Modelos")
+    st.dataframe(df_comp.style.format("{:.2f}"), height=320)
+
+    # ------------------- Tablas separadas de parámetros -------------------
+    def sum_errors_squared(y_model):
+        return np.sum(((y_exp - y_model)/y_exp)**2) if y_model is not None else np.nan
+
+    # Predicciones
+    y_ggs = np.clip(GGS_model(d, *ggs_params), None, 100.0) if not np.isnan(ggs_params).any() else None
+    y_rrsb = np.clip(RRSB_model(d, *rrsb_params), None, 100.0) if not np.isnan(rrsb_params).any() else None
+    y_dw = np.clip(double_weibull(d, *dw_params), None, 100.0) if not np.isnan(dw_params).any() else None
+
+    # Tabla GGS
+    ggs_table = pd.DataFrame([{
+        'dmax (µm)': ggs_params[1],
+        'm': ggs_params[0],
+        'Σε²': sum_errors_squared(y_ggs),
+        'F.O.': fits['GGS']['FO']
+    }])
+    st.subheader("Parámetros GGS"); st.table(ggs_table.style.format("{:.4f}"))
+
+    # Tabla RRSB
+    rrsb_table = pd.DataFrame([{
+        'l (µm)': rrsb_params[1],
+        'm': rrsb_params[0],
+        'Σε²': sum_errors_squared(y_rrsb),
+        'F.O.': fits['RRSB']['FO']
+    }])
+    st.subheader("Parámetros RRSB"); st.table(rrsb_table.style.format("{:.4f}"))
+
+    # Tabla Doble Weibull
+    dw_table = pd.DataFrame([{
+        'α': dw_params[0],
+        'k1': dw_params[1],
+        'k2': dw_params[2],
+        'd80 (µm)': dw_params[3],
+        'Σε²': sum_errors_squared(y_dw),
+        'F.O.': fits['DoubleWeibull']['FO']
+    }])
+    st.subheader("Parámetros Doble Weibull"); st.table(dw_table.style.format("{:.4f}"))
+
+    # ------------------- Gráficos -------------------
+    xdata = d; ydata = y_exp
+    dd = np.linspace(np.min(xdata), np.max(xdata), 500)
+    y_ggs_plot = np.clip(GGS_model(dd, *ggs_params), None, 100.0) if not np.isnan(ggs_params).any() else None
+    y_rrsb_plot = np.clip(RRSB_model(dd, *rrsb_params), None, 100.0) if not np.isnan(rrsb_params).any() else None
+    y_dw_plot = np.clip(double_weibull(dd, *dw_params), None, 100.0) if not np.isnan(dw_params).any() else None
+
+    exp_marker_kwargs = {'marker':'o', 'markersize':5, 'markeredgewidth':0.8,
+                         'markeredgecolor':'k', 'markerfacecolor':'white', 'linestyle':'None'}
+    graf_option = st.selectbox("Selecciona tipo de gráfica:",
+                               ["Comparación de perfiles",
+                                "Diagrama GGS (log-log)",
+                                "Diagrama RRSB (log-x, transform y)",
+                                "Diagrama DW (decimal)"])
+    fig, ax = plt.subplots(figsize=(8,4))
+
+    # Todas las líneas negras, puntos con borde negro y fondo blanco
+    line_kwargs = {'color':'k', 'linewidth':0.9}
+
+    if graf_option == "Comparación de perfiles":
+        ax.plot(xdata, ydata, **exp_marker_kwargs, label='Experimental')
+        if y_ggs_plot is not None: ax.plot(dd, y_ggs_plot, '-', label='GGS', **line_kwargs)
+        if y_rrsb_plot is not None: ax.plot(dd, y_rrsb_plot, '-', label='RRSB', **line_kwargs)
+        if y_dw_plot is not None: ax.plot(dd, y_dw_plot, '-', label='DW', **line_kwargs)
+        ax.set_xlabel("Tamaño (µm)"); ax.set_ylabel("%F(d)")
+        ax.set_ylim(0,100); ax.set_yticks(np.arange(0,101,10)); ax.grid(True, ls='--', alpha=0.5); ax.legend()
+
+    elif graf_option == "Diagrama GGS (log-log)":
+        ax.set_xscale('log'); ax.set_yscale('log')
+        ax.plot(xdata, np.clip(ydata,1e-6,100.0), **exp_marker_kwargs)
+        if y_ggs_plot is not None: ax.plot(dd, np.clip(y_ggs_plot,1e-6,100.0), '-', **line_kwargs)
+        ax.set_xlabel("Tamaño (µm) [log]"); ax.set_ylabel("%F(d) [log]"); ax.grid(True, which='both', ls='--', alpha=0.5)
+
+    elif graf_option == "Diagrama RRSB (log-x, transform y)":
+        ax.set_xscale('log'); ax.set_xlabel("Tamaño (µm) [log]")
+        def transform_rrsb(y_percent): y=np.minimum(99.9999,np.maximum(1e-8,y_percent)); return np.log(np.log(1.0/(1.0-(y/100.0))))
+        ydata_trans = transform_rrsb(ydata)
+        ax.plot(xdata, ydata_trans, **exp_marker_kwargs)
+        if y_rrsb_plot is not None: ax.plot(dd, transform_rrsb(y_rrsb_plot), '-', **line_kwargs)
+        ax.set_ylabel("Log[ ln(1 / (1 - (%F/100))) ]"); ax.grid(True, ls='--', alpha=0.5)
+
+    elif graf_option == "Diagrama DW (decimal)":
+        ax.plot(xdata, ydata, **exp_marker_kwargs)
+        if y_dw_plot is not None: ax.plot(dd, y_dw_plot, '-', **line_kwargs)
+        ax.set_xlabel("Tamaño (µm)"); ax.set_ylabel("%F(d)"); ax.set_ylim(0,100); ax.set_yticks(np.arange(0,101,10)); ax.grid(True, ls='--', alpha=0.5)
+
+    st.pyplot(fig, use_container_width=True)
+
+    # ------------------- Navegación -------------------
     col1, col2 = st.columns(2)
     with col1:
         if st.button("ANTERIOR"):
-            st.session_state.page = 4
-            st.rerun()  
+            st.session_state.page = 4; st.rerun()
     with col2:
         if st.button("SIGUIENTE"):
-            st.session_state.page = 6
-            st.rerun()
+            st.session_state.page = 6; st.rerun()
+
 
 # ---------- PÁGINA 6: Exportación ----------
 def page_6():
@@ -1099,6 +1038,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
