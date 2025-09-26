@@ -388,8 +388,13 @@ def page_3():
         ax.set_ylabel("%F(d)")
 
     elif grafico == "Diagrama Acumulativo de Sobretamaño":
-        # 'X' negras y fondo blanco (usamos scatter para controlar colores)
-        ax.scatter(x_inf, yr, marker='x', s=64, linewidths=1.2, edgecolors='k', facecolors='black', zorder=4)
+        ax.scatter(
+            x_inf, yr,
+            marker='x', s=64,
+            linewidths=1.2,
+            edgecolors='k', facecolors='k',   
+            zorder=4
+        )
         ax.plot(x_inf, yr, color='k', linewidth=lw)
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("%R(d)")
@@ -1175,6 +1180,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
