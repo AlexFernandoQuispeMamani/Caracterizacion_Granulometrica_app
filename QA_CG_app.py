@@ -873,6 +873,22 @@ def page_5():
         st.subheader("Parámetros Doble Weibull")
         st.table(dw_table.style.format("{:.4f}"))
 
+    # ------------------- Comparación de FO -------------------
+    if st.session_state.models_fit:
+        fits = st.session_state.models_fit
+        fo_tbl = pd.DataFrame([
+            {'Modelo':'GGS','F.O.':fits['GGS']['FO']},
+            {'Modelo':'RRSB','F.O.':fits['RRSB']['FO']},
+            {'Modelo':'Doble Weibull','F.O.':fits['DoubleWeibull']['FO']}
+        ])
+        st.subheader("Comparación de funciones objetivo (F.O.)")
+        st.table(fo_tbl.style.format({'F.O.':'{:.6g}'}))
+
+        # Indicar el mejor modelo
+        best = min(fits.items(), key=lambda x: x[1]['FO'])
+        best_model_name = best[0]
+        st.markdown(f"**Mejor modelo:** {best_model_name} con F.O. = {best[1]['FO']:.6g}")
+
     # ------------------- Comparación de FO y gráficos -------------------
     if st.session_state.models_fit:
         fits = st.session_state.models_fit
@@ -1010,6 +1026,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
