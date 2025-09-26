@@ -180,15 +180,33 @@ def compute_analysis(df_in, mode):
     if '%F(d)' in df.columns:
         df['%F(d)'] = df['%F(d)'].abs()
 
-    # --- CORRECCIÓN 2: cambiar primera malla ---
+    # --- CORRECCIÓN 2: ajustar primera malla con 2 mallas superiores de la serie Tyler ---
     if 'Nº de malla (intervalo)' in df.columns and len(df) > 1:
         try:
-            next_label = df.loc[1, 'Nº de malla (intervalo)']
-            upper = next_label.split('+')[0].replace('-', '')
-            current = df.loc[0, 'Nº de malla (intervalo)']
-            df.loc[0, 'Nº de malla (intervalo)'] = f"-{upper}+{current}"
+            tyler_series = [
+                1.05,0.883,0.742,0.624,0.525,0.441,0.371,2.5,3,3.5,4,5,6,7,8,9,10,12,
+                14,16,20,24,28,32,35,42,48,60,65,80,100,115,150,170,200,250,270,320,400
+            ]
+            # obtener la malla de la primera fila
+            current_label = df.loc[0, 'Nº de malla (intervalo)']
+            try:
+                current_num = float(str(current_label).replace('#',''))
+            except:
+                current_num = None
+
+            if current_num is not None:
+                if current_num in tyler_series:
+                    idx = tyler_series.index(current_num)
+                    if idx >= 2:
+                        upper = tyler_series[idx - 2]
+                        df.loc[0, 'Nº de malla (intervalo)'] = f"-{int(upper)}#+{int(current_num)}#"
+                    else:
+                        # No hay dos mallas superiores, solo indicamos +malla
+                        upper = tyler_series[0]
+                        df.loc[0, 'Nº de malla (intervalo)'] = f"+{int(current_num)}#"
         except Exception as e:
             print("Aviso: no se pudo ajustar la primera fila:", e)
+
     return df
 
 # ---------- PÁGINA 1: Bienvenida ----------
@@ -1188,6 +1206,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
