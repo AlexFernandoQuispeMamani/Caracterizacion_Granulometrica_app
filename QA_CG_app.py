@@ -623,9 +623,9 @@ def page_4():
                     # Cálculos Folk & Ward (usando fórmulas manuales)
                     M = (phi[16] + phi[50] + phi[84]) / 3.0
                     Md = phi[50]
-                    sigmaI = ((phi[84] - phi[16]) / 4.0) + ((phi[95] - phi[5]) / 6.6)
-                    SkI = ((phi[16] + phi[84] - 2*phi[50]) / (2*(phi[84]-phi[16]))) + \
-                          ((phi[5] + phi[95] - 2*phi[50]) / (2*(phi[95]-phi[5])))
+                    sigmaI = abs((phi[84] - phi[16]) / 4.0 + (phi[95] - phi[5]) / 6.6)
+                    SkI = ((2*phi[50] - phi[16] - phi[84]) / (2*(phi[84]-phi[16]))) + \
+                          ((2*phi[50] - phi[5] - phi[95]) / (2*(phi[95]-phi[5])))
                     KG = (phi[95] - phi[5]) / (2.44 * (phi[75] - phi[25]))
 
                     # Tabla sin índice
@@ -988,6 +988,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
