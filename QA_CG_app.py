@@ -749,7 +749,6 @@ def double_weibull(d, alpha, k1, k2, d80):
     )
             
 # ---------- PÁGINA 5: Selección del Modelo ----------
-
 def page_5():
     st.title("SELECCIÓN DEL MODELO")
     st.markdown("Ajuste de modelos: GGS, RRSB y Doble Weibull. Se estiman parámetros minimizando SSE (F.O.).")
@@ -832,7 +831,7 @@ def page_5():
     rrsb_params = fits['RRSB']['params']
     dw_params = fits['DoubleWeibull']['params']
 
-    # ------------------- TABLA COMPARATIVA ORIGINAL -------------------
+    # ------------------- TABLA COMPARATIVA -------------------
     table_data = []
     for i in range(len(d)):
         xi = d[i]; ye = y_exp[i]
@@ -872,7 +871,19 @@ def page_5():
 
     df_comp = pd.DataFrame(table_data)
     st.subheader("Tabla comparativa: Experimental vs Modelos")
-    st.dataframe(df_comp.style.format("{:.2f}"), height=320)
+    st.dataframe(
+        df_comp.style.format({
+            "Tamaño inferior (µm)": "{:.2f}",
+            "%F(d)e": "{:.2f}",
+            "%F(d)m_GGS": "{:.2f}",
+            "%F(d)m_RRSB": "{:.2f}",
+            "%F(d)m_DW": "{:.2f}",
+            "ε²_GGS": "{:.2e}",
+            "ε²_RRSB": "{:.2e}",
+            "ε²_DW": "{:.2e}"
+        }),
+        height=320
+    )
 
     # ------------------- Tablas separadas de parámetros -------------------
     def sum_errors_squared(y_model):
@@ -883,25 +894,21 @@ def page_5():
     y_rrsb = np.clip(RRSB_model(d, *rrsb_params), None, 100.0) if not np.isnan(rrsb_params).any() else None
     y_dw = np.clip(double_weibull(d, *dw_params), None, 100.0) if not np.isnan(dw_params).any() else None
 
-    # Tabla GGS
+    # Crear tablas
     ggs_table = pd.DataFrame([{
         'dmax (µm)': ggs_params[1],
         'm': ggs_params[0],
         'Σε²': sum_errors_squared(y_ggs),
         'F.O.': fits['GGS']['FO']
     }])
-    st.subheader("Parámetros GGS"); st.table(ggs_table.style.format("{:.4f}"))
 
-    # Tabla RRSB
     rrsb_table = pd.DataFrame([{
         'l (µm)': rrsb_params[1],
         'm': rrsb_params[0],
         'Σε²': sum_errors_squared(y_rrsb),
         'F.O.': fits['RRSB']['FO']
     }])
-    st.subheader("Parámetros RRSB"); st.table(rrsb_table.style.format("{:.4f}"))
 
-    # Tabla Doble Weibull
     dw_table = pd.DataFrame([{
         'α': dw_params[0],
         'k1': dw_params[1],
@@ -910,7 +917,18 @@ def page_5():
         'Σε²': sum_errors_squared(y_dw),
         'F.O.': fits['DoubleWeibull']['FO']
     }])
-    st.subheader("Parámetros Doble Weibull"); st.table(dw_table.style.format("{:.4f}"))
+
+    # Mostrar en tres columnas
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.subheader("Parámetros GGS")
+        st.table(ggs_table.style.format("{:.4f}"))
+    with col2:
+        st.subheader("Parámetros RRSB")
+        st.table(rrsb_table.style.format("{:.4f}"))
+    with col3:
+        st.subheader("Parámetros Doble Weibull")
+        st.table(dw_table.style.format("{:.4f}"))
 
     # ------------------- Gráficos -------------------
     xdata = d; ydata = y_exp
@@ -1114,6 +1132,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
