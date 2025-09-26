@@ -1072,7 +1072,7 @@ def page_5():
     with col2:
         if st.button("SIGUIENTE"):
             st.session_state.page = 6
-            st.rerun()  
+            st.rerun()
 
 # ---------- PÁGINA 6: Exportación ----------
 def page_6():
@@ -1142,6 +1142,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
