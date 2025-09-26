@@ -175,6 +175,20 @@ def compute_analysis(df_in, mode):
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors='coerce')
     # return raw numeric DataFrame (rounding applied on display)
+
+    # --- CORRECCIÓN 1: evitar -0 en %F(d) ---
+    if '%F(d)' in df.columns:
+        df['%F(d)'] = df['%F(d)'].abs()
+
+    # --- CORRECCIÓN 2: cambiar primera malla ---
+    if 'Nº de malla (intervalo)' in df.columns and len(df) > 1:
+        try:
+            next_label = df.loc[1, 'Nº de malla (intervalo)']
+            upper = next_label.split('+')[0].replace('-', '')
+            current = df.loc[0, 'Nº de malla (intervalo)']
+            df.loc[0, 'Nº de malla (intervalo)'] = f"-{upper}+{current}"
+        except Exception as e:
+            print("Aviso: no se pudo ajustar la primera fila:", e)
     return df
 
 # ---------- PÁGINA 1: Bienvenida ----------
@@ -1174,6 +1188,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
