@@ -431,65 +431,62 @@ def page_4():
 
     # Sección 1: ANÁLISIS ESTADÍSTICO
     st.header("ANÁLISIS ESTADÍSTICO")
-    sizes = results['Tamaño promedio (µm)'].iloc[:-1].replace(0, np.nan).dropna()
+    sizes = results['Tamaño inferior (µm)'].iloc[:-1].replace(0, np.nan).dropna()
     weights = results['%Peso'].iloc[:-1].replace(0, np.nan).dropna() / 100.0
-    # align size and weights
     mask = (~sizes.isna()) & (~weights.isna())
     sizes = sizes.loc[mask]
     weights = weights.loc[mask]
+
     if len(sizes) == 0:
         st.warning("No hay suficientes datos para el análisis estadístico.")
     else:
-        # Weighted mean
         wsum = weights.sum()
         if wsum == 0:
             mean = float(sizes.mean())
         else:
             mean = float((sizes * weights).sum() / wsum)
-        # median via interpolation
         try:
             median = float(np.interp(50, 100*weights.cumsum(), sizes))
         except:
             median = float(np.median(sizes))
-        # mode approx: size with max %Peso
         mode_idx = np.argmax(results['%Peso'].iloc[:-1].values)
-        mode = float(results['Tamaño promedio (µm)'].iloc[:-1].values[mode_idx])
+        mode = float(results['Tamaño inferior (µm)'].iloc[:-1].values[mode_idx])
         variance = float(((sizes - mean)**2 * weights).sum() / (weights.sum() if weights.sum()>0 else len(sizes)))
         std = float(np.sqrt(variance))
         kurtosis = float(pd.Series(sizes).kurtosis())
         rango = float(np.nanmax(sizes) - np.nanmin(sizes))
 
         stats_tbl = pd.DataFrame({
-            'Estadístico':['Media (µm)','Mediana (µm)','Moda (µm)','Varianza (µm²)','Desvío estándar (µm)','Curtosis','Rango (µm)'],
+            'Estadístico':['Media (µm)','Mediana (µm)','Moda (µm)','Varianza (µm²)',
+                           'Desvío estándar (µm)','Curtosis','Rango (µm)'],
             'Valor':[mean, median, mode, variance, std, kurtosis, rango]
         })
         colA, colB = st.columns([1,1])
         with colA:
             st.table(stats_tbl.style.format({ 'Valor':'{:.3f}'}))
         with colB:
-            # Interpretación heurística (reglas sencillas para comentarios)
             comments = []
-            # Varianza: regla heurística
             if variance < (mean * 0.01 if mean>0 else 1):
                 comments.append(f"Varianza {variance:.3f}: variabilidad de tamaños **muy baja**; partículas relativamente uniformes.")
             elif variance < (mean * 0.1 if mean>0 else 10):
                 comments.append(f"Varianza {variance:.3f}: variabilidad **moderada** en tamaños.")
             else:
                 comments.append(f"Varianza {variance:.3f}: variabilidad **alta** en tamaños (amplia dispersión granulométrica).")
-            # Rango
+
             if rango <= 50:
                 comments.append(f"Rango {rango:.1f} µm: espectro granulométrico **estrecho** (partículas similares).")
             elif rango <= 300:
                 comments.append(f"Rango {rango:.1f} µm: espectro **moderado**.")
             else:
                 comments.append(f"Rango {rango:.1f} µm: espectro **amplio** (muestra heterogénea).")
-            # Curtosis
+
             if kurtosis > 1.5:
                 comments.append(f"Curtosis {kurtosis:.2f}: distribución **leptocúrtica** (cola delgada, pico alto).")
             elif kurtosis < -1.0:
                 comments.append(f"Curtosis {kurtosis:.2f}: distribución **platocúrtica** (colas gruesas, pico bajo).")
             else:
                 comments.append(f"Curtosis {kurtosis:.2f}: distribución **mesocúrtica** (casi normal).")
+
             st.markdown("**Interpretación automática:**")
             for c in comments:
                 st.write("- " + c)
@@ -501,44 +498,39 @@ def page_4():
     with col1:
         st.subheader("PERFIL GRANULÓMETRICO")
         st.markdown("El perfil granulométrico de una muestra describe cualitativamente la distribución por tamaños de dicha muestra.")
-        # Diagrama acumulativo de subtamaño en escala decimal obligatorio
         plot_df = results.iloc[:-1].copy()
-        plot_df = plot_df[plot_df['Tamaño promedio (µm)'].notna()]
-        x = plot_df['Tamaño promedio (µm)']
+        plot_df = plot_df[plot_df['Tamaño inferior (µm)'].notna()]
+        x = plot_df['Tamaño inferior (µm)']
         y = plot_df['%F(d)']
 
         fig, ax = plt.subplots(figsize=(6,4))
         fig.patch.set_facecolor('#e6e6e6')
         ax.set_facecolor('white')
-
-        # preparar máscara para evitar NaN en la gráfica
         mask_plot = x.notna() & y.notna()
         x_plot = x[mask_plot]
         y_plot = y[mask_plot]
 
-        # Línea negra delgada y puntos redondos pequeños (relleno blanco, borde negro)
         ax.plot(x_plot, y_plot, color='black', linewidth=0.8, zorder=2)
-        ax.scatter(x_plot, y_plot, facecolors='white', edgecolors='black', s=30, linewidths=0.8, zorder=3, marker='o')
+        ax.scatter(x_plot, y_plot, facecolors='white', edgecolors='black', s=30,
+                   linewidths=0.8, zorder=3, marker='o')
 
         ax.set_xlabel("Tamaño (µm)")
         ax.set_ylabel("%F(d)")
         ax.set_ylim(0, 100)
-        ax.set_yticks(np.arange(0, 101, 10))  # eje Y de 10 en 10
+        ax.set_yticks(np.arange(0, 101, 10))
         ax.grid(True, which='both', ls='--', alpha=0.5)
         st.pyplot(fig)
 
-        # calcular d80 por interpolación/extrapolación
         try:
             mask = (~np.isnan(x)) & (~np.isnan(y))
             xs = np.array(x[mask])
             ys = np.array(y[mask])
-            # ordenar por xs ascending para interpolación consistente
             order = np.argsort(xs)
             xs_s = xs[order]
             ys_s = ys[order]
             inv = interp1d(ys_s, xs_s, fill_value="extrapolate", bounds_error=False)
             d80 = float(inv(80.0))
-            st.markdown(f"**d80 = {d80:.3f} µm** — El 80% de partículas es menor a este tamaño.")
+            st.markdown(f"**d80 = {d80:.2f} µm** — El 80% de partículas es menor a este tamaño.")
         except Exception as e:
             st.warning("No hay suficientes datos para calcular d80: " + str(e))
 
@@ -546,33 +538,36 @@ def page_4():
         st.subheader("%F(d) y TAMAÑOS NOMINALES")
         modo_calc = st.selectbox("Seleccione operación:", ["CALCULAR TAMAÑO", "CALCULAR %F(d)"], key='modo_calc')
         if modo_calc == "CALCULAR TAMAÑO":
-            pct_input = st.number_input("Ingrese %F(d) =", min_value=0.0, max_value=100.0, value=50.0, key='pct_input')
+            pct_input = st.number_input("Ingrese %F(d) =", min_value=0.0, max_value=100.0,
+                                        value=50.0, key='pct_input')
             if st.button("GRABAR d (pct->tamaño)"):
-                x = plot_df['Tamaño promedio (µm)']
+                x = plot_df['Tamaño inferior (µm)']
                 y = plot_df['%F(d)']
                 mask = (~np.isnan(x)) & (~np.isnan(y))
                 try:
                     inv = interp1d(y[mask], x[mask], fill_value="extrapolate", bounds_error=False)
                     d_val = float(inv(pct_input))
-                    st.session_state.nominal_sizes = pd.concat([st.session_state.nominal_sizes,
-                                                               pd.DataFrame([{'%F(d)': pct_input, 'Tamaño (µm)': d_val}])],
-                                                              ignore_index=True)
-                    st.success(f"Grabado: {pct_input}% -> {d_val:.3f} µm")
+                    st.session_state.nominal_sizes = pd.concat([
+                        st.session_state.nominal_sizes,
+                        pd.DataFrame([{'%F(d)': pct_input, 'Tamaño (µm)': d_val}])
+                    ], ignore_index=True)
+                    st.success(f"Grabado: {pct_input}% -> {d_val:.2f} µm")
                 except Exception as e:
                     st.error("No se puede interpolar: " + str(e))
         else:
             d_input = st.number_input("Ingrese d (µm) =", min_value=0.0, value=100.0, key='d_input')
             if st.button("GRABAR %F(d) (tamaño->pct)"):
-                x = plot_df['Tamaño promedio (µm)']
+                x = plot_df['Tamaño inferior (µm)']
                 y = plot_df['%F(d)']
                 mask = (~np.isnan(x)) & (~np.isnan(y))
                 try:
                     f = interp1d(x[mask], y[mask], fill_value="extrapolate", bounds_error=False)
                     pctv = float(f(d_input))
-                    st.session_state.nominal_sizes = pd.concat([st.session_state.nominal_sizes,
-                                                               pd.DataFrame([{'%F(d)': pctv, 'Tamaño (µm)': d_input}])],
-                                                              ignore_index=True)
-                    st.success(f"Grabado: {d_input} µm -> {pctv:.3f}%")
+                    st.session_state.nominal_sizes = pd.concat([
+                        st.session_state.nominal_sizes,
+                        pd.DataFrame([{'%F(d)': pctv, 'Tamaño (µm)': d_input}])
+                    ], ignore_index=True)
+                    st.success(f"Grabado: {d_input} µm -> {pctv:.2f}%")
                 except Exception as e:
                     st.error("No se puede interpolar: " + str(e))
 
@@ -587,63 +582,57 @@ def page_4():
 
     # Sección 3: Folk & Ward
     st.header("ESTADÍSTICOS SEGÚN FOLK & WARD")
-    st.markdown("Folk & Ward (1957): se calculan parámetros de tendencia central y de dispersión (M, Md, σ, Sk, K) usando percentiles (d5, d16, d25, d50, d75, d84, d95).")
-    try:
-        # preparar interpolación inversa
-        x_all = plot_df['Tamaño promedio (µm)']
-        y_all = plot_df['%F(d)']
-        mask = (~np.isnan(x_all)) & (~np.isnan(y_all))
-        if mask.sum() < 2:
-            st.warning("No hay suficientes puntos para calcular Folk & Ward.")
-        else:
-            xs = np.array(x_all[mask])
-            ys = np.array(y_all[mask])
-            order = np.argsort(xs)
-            xs_s = xs[order]
-            ys_s = ys[order]
-            inv = interp1d(ys_s, xs_s, fill_value="extrapolate", bounds_error=False)
-            perc_needed = [5,16,25,50,75,84,95]
-            ds = {p: float(inv(p)) for p in perc_needed}
-            ds_mm = {p: ds[p]/1000.0 for p in ds}
-            for p in ds_mm:
-                if ds_mm[p] <= 0:
-                    raise ValueError("Valores de tamaño no positivos para convertir a phi.")
-            phi = {p: -np.log2(ds_mm[p]) for p in ds_mm}
+    st.markdown("Folk & Ward (1957): se calculan parámetros de tendencia central y dispersión (M, Md, σ, Sk, K).")
 
-            # Cálculos Folk & Ward
-            M = (phi[16] + phi[50] + phi[84]) / 3.0
-            Md = phi[50]
-            sigmaI = ((phi[84] - phi[16]) / 4.0) + ((phi[95] - phi[5]) / 6.6)
-            SkI = ((phi[16] + phi[84] - 2*phi[50]) / (2*(phi[84]-phi[16]))) + ((phi[5] + phi[95] - 2*phi[50]) / (2*(phi[95]-phi[5])))
-            KG = (phi[95] - phi[5]) / (2.44 * (phi[75] - phi[25]))
+    if st.button("ESTIMAR"):
+        try:
+            req_pcts = [5,16,25,50,75,84,95]
+            if st.session_state.nominal_sizes.empty or not all(
+                any(abs(st.session_state.nominal_sizes['%F(d)'] - p) < 1e-6 for p in req_pcts)
+                for p in req_pcts):
+                st.warning("Grabe los tamaños nominales d5, d16, d25, d50, d75, d84, d95")
+            else:
+                ds = {p: float(st.session_state.nominal_sizes.loc[
+                    abs(st.session_state.nominal_sizes['%F(d)'] - p) < 1e-6, 'Tamaño (µm)'].iloc[0]) 
+                      for p in req_pcts}
+                ds_mm = {p: ds[p]/1000.0 for p in ds}
+                for p in ds_mm:
+                    if ds_mm[p] <= 0:
+                        raise ValueError("Valores de tamaño no positivos para convertir a phi.")
+                phi = {p: -np.log2(ds_mm[p]) for p in ds_mm}
 
-            folk_tbl = pd.DataFrame({
-                'Parámetro':['M (phi)','Md (phi)','σ (phi)','Sk (phi)','K (phi)'],
-                'Valor':[M, Md, sigmaI, SkI, KG]
-            })
+                M = (phi[16] + phi[50] + phi[84]) / 3.0
+                Md = phi[50]
+                sigmaI = ((phi[84] - phi[16]) / 4.0) + ((phi[95] - phi[5]) / 6.6)
+                SkI = ((phi[16] + phi[84] - 2*phi[50]) / (2*(phi[84]-phi[16]))) + \
+                      ((phi[5] + phi[95] - 2*phi[50]) / (2*(phi[95]-phi[5])))
+                KG = (phi[95] - phi[5]) / (2.44 * (phi[75] - phi[25]))
 
-            col_tbl, col_interp = st.columns([1,1])
-            with col_tbl:
-                st.subheader("Tabla Folk & Ward")
-                st.table(folk_tbl.style.format({'Valor':'{:.3f}'}))
-            with col_interp:
-                st.subheader("Interpretación Folk & Ward")
-                # Interpretación heurística
-                disp_comment = "Dispersión indefinida"
-                if sigmaI < 0.5:
-                    disp_comment = f"σ = {sigmaI:.3f}: muestra **bien seleccionada** (poco dispersa)."
-                elif sigmaI < 1.0:
-                    disp_comment = f"σ = {sigmaI:.3f}: muestra **moderadamente seleccionada**."
-                else:
-                    disp_comment = f"σ = {sigmaI:.3f}: muestra **pobremente seleccionada** (amplia dispersión)."
-                skew_comment = f"Sk = {SkI:.3f}: " + ("sesgo hacia partículas gruesas." if SkI < 0 else "sesgo hacia partículas finas.")
-                kurt_comment = f"K = {KG:.3f}: " + ("leptocúrtica (pico agudo)." if KG > 1.2 else ("platicúrtica (pico bajo)." if KG < 0.8 else "mesocúrtica."))
+                folk_tbl = pd.DataFrame({
+                    'Parámetro':['M (phi)','Md (phi)','σ (phi)','Sk (phi)','K (phi)'],
+                    'Valor':[M, Md, sigmaI, SkI, KG]
+                })
 
-                st.write("- " + disp_comment)
-                st.write("- " + skew_comment)
-                st.write("- " + kurt_comment)
-    except Exception as e:
-        st.warning("No se pueden calcular Folk & Ward (falta d5,d95 o datos insuficientes): " + str(e))
+                col_tbl, col_interp = st.columns([1,1])
+                with col_tbl:
+                    st.subheader("Tabla Folk & Ward")
+                    st.table(folk_tbl.style.format({'Valor':'{:.3f}'}))
+                with col_interp:
+                    st.subheader("Interpretación Folk & Ward")
+                    if sigmaI < 0.5:
+                        disp_comment = f"σ = {sigmaI:.3f}: muestra **bien seleccionada** (poco dispersa)."
+                    elif sigmaI < 1.0:
+                        disp_comment = f"σ = {sigmaI:.3f}: muestra **moderadamente seleccionada**."
+                    else:
+                        disp_comment = f"σ = {sigmaI:.3f}: muestra **pobremente seleccionada** (amplia dispersión)."
+                    skew_comment = f"Sk = {SkI:.3f}: " + ("sesgo hacia partículas gruesas." if SkI < 0 else "sesgo hacia partículas finas.")
+                    kurt_comment = f"K = {KG:.3f}: " + ("leptocúrtica (pico agudo)." if KG > 1.2 else ("platicúrtica (pico bajo)." if KG < 0.8 else "mesocúrtica."))
+
+                    st.write("- " + disp_comment)
+                    st.write("- " + skew_comment)
+                    st.write("- " + kurt_comment)
+        except Exception as e:
+            st.warning("No se pueden calcular Folk & Ward: " + str(e))
 
     # Navegación
     col1, col2 = st.columns(2)
@@ -935,6 +924,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
