@@ -317,7 +317,7 @@ def page_3():
             st.rerun()
         return
 
-    # Mostrar tabla de resultados
+    # Formato de tabla
     fmt = {}
     for c in results.columns:
         if c in ['Peso (g)', '%Peso', '%F(d)', '%R(d)', 'Tamaño promedio (µm)', 'Tamaño inferior (µm)', 'Tamaño superior (µm)']:
@@ -340,77 +340,91 @@ def page_3():
 
     escala = st.selectbox("Escala", ["Escala decimal", "Escala semilogarítmica (X log)", "Escala logarítmica (ambos log)"], index=0, key='escala_select')
 
-    # Usar Tamaño inferior como X en curvas acumulativas y de distribución
-    plot_df = results.iloc[:-1].copy()  # quitar fila TOTAL
+    # Datos para gráficas
+    plot_df = results.iloc[:-1].copy()
     plot_df = plot_df[plot_df['Tamaño inferior (µm)'].notna()]
 
     x_inf = plot_df['Tamaño inferior (µm)'].replace(0, np.nan)
-    x_avg = plot_df['Tamaño promedio (µm)'].replace(0, np.nan)  # solo para histograma
+    x_avg = plot_df['Tamaño promedio (µm)'].replace(0, np.nan)
     y_pct = plot_df['%Peso']
-    yf = plot_df['%F(d)']
-    yr = plot_df['%R(d)']
+    yf = plot_df['%F(d)'].abs()
+    yr = plot_df['%R(d)'].abs()
 
     fig, ax = plt.subplots(figsize=(9, 4))
-    fig.patch.set_facecolor('#e6e6e6')
-    ax.set_facecolor('white')
+    fig.patch.set_facecolor('#e6e6e6')  # Área externa
+    ax.set_facecolor('white')           # Área del gráfico
 
     lw = 0.9
-    ms = 4
+    ms = 6
+    marker_kwargs = dict(marker='o', s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4)
 
+    # --- Graficar según selección ---
     if grafico == "Histograma de frecuencia":
-        ax.bar(
-            x_avg, y_pct,
-            width=(np.nanmax(x_avg)/len(x_avg) if len(x_avg) > 0 else 1),
-            color="black", edgecolor="black", linewidth=0.5, alpha=0.9
-        )
+        width = (np.nanmax(x_avg)/len(x_avg) if len(x_avg) > 0 else 1)
+        ax.bar(x_avg, y_pct, width=width, color='white', edgecolor='k', linewidth=0.9)
         ax.set_xlabel("Tamaño promedio (µm)")
         ax.set_ylabel("%Peso")
 
     elif grafico == "Diagrama de simple distribución":
-        ax.plot(x_inf, y_pct, marker='o', markersize=ms, linewidth=lw, color='black')
+        ax.scatter(x_inf, y_pct, **marker_kwargs)
+        ax.plot(x_inf, y_pct, color='k', linewidth=lw)
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("%Peso")
 
     elif grafico == "Diagrama Acumulativo de Subtamaño":
-        ax.plot(x_inf, yf, marker='o', markersize=ms, linewidth=lw, color='black')
+        ax.scatter(x_inf, yf, **marker_kwargs)
+        ax.plot(x_inf, yf, color='k', linewidth=lw)
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("%F(d)")
 
     elif grafico == "Diagrama Acumulativo de Sobretamaño":
-        ax.plot(x_inf, yr, marker='x', markersize=ms, linewidth=lw, color='black')
+        ax.scatter(x_inf, yr, **marker_kwargs)
+        ax.plot(x_inf, yr, color='k', linewidth=lw)
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("%R(d)")
 
     elif grafico == "Diagrama Acumulativo (Combinación)":
-        ax.plot(x_inf, yf, label='%F(d)', marker='o', markersize=ms, linewidth=lw, color='black')
-        ax.plot(x_inf, yr, label='%R(d)', marker='x', markersize=ms, linewidth=lw, color='black')
+        ax.scatter(x_inf, yf, **marker_kwargs)
+        ax.plot(x_inf, yf, color='k', linewidth=lw, label='%F(d)')
+        ax.scatter(x_inf, yr, marker='s', s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4)
+        ax.plot(x_inf, yr, color='k', linewidth=lw, label='%R(d)')
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("Porcentaje")
         ax.legend()
 
-    else:  # Curvas granulométricas (Combinación 2,3,4)
-        ax.plot(x_inf, y_pct, label='%Peso', marker='s', markersize=ms, linewidth=lw, color='black')
-        ax.plot(x_inf, yf, label='%F(d)', marker='o', markersize=ms, linewidth=lw, color='black')
-        ax.plot(x_inf, yr, label='%R(d)', marker='x', markersize=ms, linewidth=lw, color='black')
+    else:  # Curvas granulométricas
+        ax.scatter(x_inf, y_pct, marker='^', **marker_kwargs)
+        ax.plot(x_inf, y_pct, color='k', linewidth=lw, label='%Peso')
+        ax.scatter(x_inf, yf, **marker_kwargs)
+        ax.plot(x_inf, yf, color='k', linewidth=lw, label='%F(d)')
+        ax.scatter(x_inf, yr, marker='s', s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4)
+        ax.plot(x_inf, yr, color='k', linewidth=lw, label='%R(d)')
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("Porcentaje")
         ax.legend()
 
-    ax.set_ylim(0, 100)
-    ax.set_yticks(np.arange(0, 101, 10))
-
-    # Escalas
-    if escala == "Escala semilogarítmica (X log)":
-        ax.set_xscale('log')
-    elif escala == "Escala logarítmica (ambos log)":
+    # --- Ajuste de ejes ---
+    ax.set_xlim(0, np.nanmax(x_inf)*1.05 if len(x_inf)>0 else 1)
+    if escala == "Escala logarítmica (ambos log)":
         ax.set_xscale('log')
         ax.set_yscale('log')
+        # Para log-log, definir Y mínimo y máximo según datos positivos
+        y_pos = np.concatenate([yf.values, yr.values, y_pct.values])
+        y_min = np.min(y_pos[y_pos>0])*0.8
+        y_max = np.max(y_pos)*1.2
+        ax.set_ylim(y_min, y_max)
+        ax.grid(True, which='both', ls='--', alpha=0.5)
+    else:
+        ax.set_ylim(0, 100)
+        ax.set_yticks(np.arange(0, 101, 10))
+        if escala == "Escala semilogarítmica (X log)":
+            ax.set_xscale('log')
+        ax.grid(True, which='both', ls='--', alpha=0.5)
 
-    ax.grid(True, which='both', ls='--', alpha=0.5)
     ax.set_title(grafico)
     st.pyplot(fig)
 
-    # Navegación
+    # --- Navegación ---
     col1, col2 = st.columns(2)
     with col1:
         if st.button("ANTERIOR"):
@@ -1132,6 +1146,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
