@@ -85,17 +85,18 @@ def compute_analysis(df_in, mode):
     # ordenar de mayor a menor tamaño inferior (X axis must be decreasing for usual granulometric table)
     df = df.sort_values(by='Tamaño inferior (µm)', ascending=False).reset_index(drop=True)
 
-    # Tamaño superior (para la primera fila se usa multiplicación por sqrt(2))
+    # Tamaño superior (para la primera fila se usa multiplicación por 2)
     size_sup = []
     for i in range(len(df)):
         if i == 0:
             if pd.isna(df.loc[i, 'Tamaño inferior (µm)']):
                 sup = np.nan
             else:
-                sup = df.loc[i, 'Tamaño inferior (µm)'] * np.sqrt(2)
+                sup = df.loc[i, 'Tamaño inferior (µm)'] * 2  # Cambio aquí
         else:
             sup = df.loc[i-1, 'Tamaño inferior (µm)']
         size_sup.append(sup)
+
     df['Tamaño superior (µm)'] = size_sup
 
     # Calcular peso de la fracción final por diferencia
@@ -1206,6 +1207,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
