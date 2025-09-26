@@ -707,19 +707,18 @@ def page_4():
         if st.button("SIGUIENTE"):
             st.session_state.page = 5
             st.rerun()
-# ---------- MODELOS (GGS, RRSB, Doble Weibull) ----------
 
-def GGS_model(d, m, Dm):
+# ---------- MODELOS (GGS, RRSB, Doble Weibull) ----------
+def GGS_model(d, m, dmax):
     """
     Modelo de Gaudin-Schuhmann (GGS).
-    d : array de tamaños de partícula
-    m : parámetro de distribución
-    Dm: tamaño máximo
+    d    : array de tamaños de partícula
+    m    : parámetro de distribución
+    dmax : tamaño máximo
     """
     d = np.array(d, dtype=float)
-    # Evitar problemas de división por cero o valores inválidos
     with np.errstate(divide='ignore', invalid='ignore'):
-        return 100.0 * (1.0 / (1.0 + (d / Dm) ** (-m)))
+        return 100.0 * (1.0 / (1.0 + (d / dmax) ** (-m)))
 
 
 def RRSB_model(d, m, l):
@@ -761,22 +760,20 @@ def page_5():
     # Prepare data for fitting (excluir fila TOTAL)
     df_fit = results.iloc[:-1].copy()
     mask = (df_fit['Tamaño inferior (µm)'] > 0) & (~np.isnan(df_fit['%F(d)']))
-    d = df_fit['Tamaño inferior (µm)'][mask].astype(float).values   # usar tamaño inferior
+    d = df_fit['Tamaño inferior (µm)'][mask].astype(float).values
     y_exp = df_fit['%F(d)'][mask].astype(float).values
 
     if len(d) < 3:
         st.warning("Se requieren al menos 3 puntos válidos para ajuste.")
-        st.write("Si necesitas más puntos, vuelve a DATOS EXPERIMENTALES y completa la tabla.")
         return
 
     if st.button("AJUSTAR"):
         # ---------- GGS ----------
         try:
-            # Iniciales: m=1, Dm ~ tamaño máximo experimental (más físico que mediana)
-            x0 = [1.0, max(d)]
+            x0 = [1.0, max(d)]  # m=1, dmax=tamaño máximo
             def f_ggs(params):
-                m, Dm = params
-                ypred = GGS_model(d, m, Dm)
+                m, dmax = params
+                ypred = GGS_model(d, m, dmax)
                 return np.sum((y_exp - ypred)**2)
             res1 = minimize(f_ggs, x0, bounds=[(0.01,10),(1e-6, max(d)*100)])
             FO_ggs = float(res1.fun)
@@ -786,7 +783,6 @@ def page_5():
 
         # ---------- RRSB ----------
         try:
-            # Inicial l ~ d para %F = 63.2 (interpolación/extrapolación)
             try:
                 inv = interp1d(y_exp, d, fill_value="extrapolate", bounds_error=False)
                 init_l = float(inv(63.2))
@@ -808,7 +804,6 @@ def page_5():
 
         # ---------- Double Weibull ----------
         try:
-            # intento heurístico para init d80 desde datos experimentales
             try:
                 inv80 = interp1d(df_fit['%F(d)'], df_fit['Tamaño inferior (µm)'], fill_value="extrapolate", bounds_error=False)
                 init_d80 = float(inv80(80.0))
@@ -816,6 +811,7 @@ def page_5():
                     init_d80 = np.median(d)
             except Exception:
                 init_d80 = np.median(d)
+
             x0 = [0.5, 1.0, 1.0, init_d80]
             bounds_dw = [(0.0,1.0),(0.01,10.0),(0.01,10.0),(1e-3,max(d)*100)]
             def f_double(params):
@@ -828,7 +824,6 @@ def page_5():
         except Exception:
             FO_dw = np.inf; dw_params = [np.nan, np.nan, np.nan, np.nan]
 
-        # Save fits
         st.session_state.models_fit = {
             'GGS': {'FO':FO_ggs, 'params':ggs_params},
             'RRSB': {'FO':FO_rrsb, 'params':rrsb_params},
@@ -836,23 +831,17 @@ def page_5():
         }
         st.success("Ajustes completados.")
 
-    # ----------- Mostrar tabla comparativa ----------
+    # ----------- Mostrar resultados -----------
     if st.session_state.get("models_fit", None):
         fits = st.session_state.models_fit
+        st.subheader("Resultados de la estimación de parámetros")
 
-        # Mostrar parámetros y sumatoria del error relativo al cuadrado por modelo
-        st.subheader("Parámetros estimados y sumatoria de errores relativos al cuadrado (Σε²_rel)")
-        # calculamos Σε²_rel por modelo usando la definición ε² = ((%F_e - %F_m)/%F_e)^2
-        # para construir esto necesitamos las predicciones por puntos usando tamaño inferior
         d_inferior = d.copy()
-        preds = {}
-        preds['GGS'] = np.full_like(d_inferior, np.nan)
-        preds['RRSB'] = np.full_like(d_inferior, np.nan)
-        preds['DW'] = np.full_like(d_inferior, np.nan)
+        preds = {'GGS':None, 'RRSB':None, 'DW':None}
 
         if not np.isnan(fits['GGS']['params']).any():
-            m, Dm = fits['GGS']['params']
-            preds['GGS'] = np.clip(GGS_model(d_inferior, m, Dm), None, 100.0)
+            m, dmax = fits['GGS']['params']
+            preds['GGS'] = np.clip(GGS_model(d_inferior, m, dmax), None, 100.0)
         if not np.isnan(fits['RRSB']['params']).any():
             m2, l = fits['RRSB']['params']
             preds['RRSB'] = np.clip(RRSB_model(d_inferior, m2, l), None, 100.0)
@@ -860,237 +849,45 @@ def page_5():
             alpha, k1, k2, d80 = fits['DoubleWeibull']['params']
             preds['DW'] = np.clip(double_weibull(d_inferior, alpha, k1, k2, d80), None, 100.0)
 
-        # calcular errores relativos al cuadrado punto a punto
-        eps_rel = {}
-        for key in preds:
-            eps = np.full_like(d_inferior, np.nan)
+        # errores relativos
+        def calc_sum_eps(y_exp, y_pred):
+            eps = []
             for i, ye in enumerate(y_exp):
-                ym = preds[key][i]
+                ym = y_pred[i]
                 if np.isfinite(ym) and ye != 0 and not np.isnan(ye):
-                    eps[i] = ((ye - ym) / ye)**2
-                else:
-                    eps[i] = np.nan
-            eps_rel[key] = eps
+                    eps.append(((ye - ym) / ye)**2)
+            return np.sum(eps)
 
-        # sumatorias
-        sum_eps = {k: np.nansum(eps_rel[k]) for k in eps_rel}
+        sum_eps = {
+            'GGS': calc_sum_eps(y_exp, preds['GGS']) if preds['GGS'] is not None else np.nan,
+            'RRSB': calc_sum_eps(y_exp, preds['RRSB']) if preds['RRSB'] is not None else np.nan,
+            'DW': calc_sum_eps(y_exp, preds['DW']) if preds['DW'] is not None else np.nan
+        }
 
-        # Tabla de parámetros y sumas
-        param_tbl = pd.DataFrame([
-            {'Modelo':'GGS', 'Parámetros': fits['GGS']['params'], 'F.O. (SSE)': fits['GGS']['FO'], 'Σε²_rel': sum_eps['GGS']},
-            {'Modelo':'RRSB', 'Parámetros': fits['RRSB']['params'], 'F.O. (SSE)': fits['RRSB']['FO'], 'Σε²_rel': sum_eps['RRSB']},
-            {'Modelo':'Doble Weibull', 'Parámetros': fits['DoubleWeibull']['params'], 'F.O. (SSE)': fits['DoubleWeibull']['FO'], 'Σε²_rel': sum_eps['DW']}
-        ])
-        # Formateo: F.O. en notación científica y Σε²_rel en notación científica con dos decimales
-        st.dataframe(param_tbl.style.format({'F.O. (SSE)':'{:.2e}','Σε²_rel':'{:.2e}'}))
+        # Mostrar tablas por modelo
+        st.markdown("**Resultados Distribución GGS**")
+        ggs_params = fits['GGS']['params']
+        df_ggs = pd.DataFrame([{
+            "m": ggs_params[0], "dmax": ggs_params[1],
+            "Σε²": sum_eps['GGS'], "F.O.": fits['GGS']['FO']
+        }])
+        st.table(df_ggs.style.format({"m":"{:.4f}","dmax":"{:.4f}","Σε²":"{:.2e}","F.O.":"{:.2e}"}))
 
-        # --------- Tabla comparativa punto a punto ----------
-        table_data = []
-        for i in range(len(d_inferior)):
-            xi = float(d_inferior[i])
-            ye = float(y_exp[i])
-            row = {
-                "Tamaño inferior (µm)": xi,
-                "%F(d)e": ye
-            }
-            # GGS
-            y_g = preds['GGS'][i] if preds['GGS'] is not None else np.nan
-            row["%F(d)m_GGS"] = np.nan if np.isnan(y_g) else float(y_g)
-            row["ε²_GGS"] = np.nan if np.isnan(eps_rel['GGS'][i]) else float(eps_rel['GGS'][i])
-            # RRSB
-            y_r = preds['RRSB'][i] if preds['RRSB'] is not None else np.nan
-            row["%F(d)m_RRSB"] = np.nan if np.isnan(y_r) else float(y_r)
-            row["ε²_RRSB"] = np.nan if np.isnan(eps_rel['RRSB'][i]) else float(eps_rel['RRSB'][i])
-            # DW
-            y_dw = preds['DW'][i] if preds['DW'] is not None else np.nan
-            row["%F(d)m_DW"] = np.nan if np.isnan(y_dw) else float(y_dw)
-            row["ε²_DW"] = np.nan if np.isnan(eps_rel['DW'][i]) else float(eps_rel['DW'][i])
+        st.markdown("**Resultados Distribución RRSB**")
+        rrsb_params = fits['RRSB']['params']
+        df_rrsb = pd.DataFrame([{
+            "m": rrsb_params[0], "λ": rrsb_params[1],
+            "Σε²": sum_eps['RRSB'], "F.O.": fits['RRSB']['FO']
+        }])
+        st.table(df_rrsb.style.format({"m":"{:.4f}","λ":"{:.4f}","Σε²":"{:.2e}","F.O.":"{:.2e}"}))
 
-            table_data.append(row)
-
-        df_comp = pd.DataFrame(table_data)
-        df_comp = df_comp[[
-            "Tamaño inferior (µm)", "%F(d)e",
-            "%F(d)m_GGS","ε²_GGS",
-            "%F(d)m_RRSB","ε²_RRSB",
-            "%F(d)m_DW","ε²_DW"
-        ]]
-
-        st.subheader("Tabla comparativa: Experimental vs Modelos")
-        # Formateo: predicciones con 2 decimales, errores relativos en notación científica con 2 decimales
-        st.dataframe(df_comp.style.format({
-            "Tamaño inferior (µm)": "{:.2f}",
-            "%F(d)e": "{:.2f}",
-            "%F(d)m_GGS": "{:.2f}", "ε²_GGS": "{:.2e}",
-            "%F(d)m_RRSB": "{:.2f}", "ε²_RRSB": "{:.2e}",
-            "%F(d)m_DW": "{:.2f}", "ε²_DW": "{:.2e}"
-        }), height=320)
-
-    # ----------- Comparación de FO y selección de gráfica -----------
-    if st.session_state.models_fit:
-        fits = st.session_state.models_fit
-        fo_tbl = pd.DataFrame([
-            {'Modelo':'GGS','F.O.':fits['GGS']['FO']},
-            {'Modelo':'RRSB','F.O.':fits['RRSB']['FO']},
-            {'Modelo':'Doble Weibull','F.O.':fits['DoubleWeibull']['FO']}
-        ])
-        st.subheader("Comparación de funciones objetivo (F.O.)")
-        st.table(fo_tbl.style.format({'F.O.':'{:.6g}'}))
-
-        best = min(fits.items(), key=lambda x: x[1]['FO'])
-        best_model_name = best[0]
-        st.markdown(f"**Mejor modelo:** {best_model_name} con F.O. = {best[1]['FO']:.6g}")
-
-        # Datos para graficar (usar siempre tamaño inferior)
-        df_fit_plot = results.iloc[:-1].copy()
-        df_fit_plot = df_fit_plot[df_fit_plot['Tamaño inferior (µm)'].notna()]
-        xdata = df_fit_plot['Tamaño inferior (µm)'].values
-        ydata = df_fit_plot['%F(d)'].values
-
-        # Dropdown para seleccionar tipo de gráfico
-        graf_option = st.selectbox("Selecciona tipo de gráfica:",
-                                   ["Comparación de perfiles",
-                                    "Diagrama GGS (log-log)",
-                                    "Diagrama RRSB (log-x, transform y)",
-                                    "Diagrama DW (decimal)"])
-
-        # Grilla de puntos finos para curvas de modelos
-        dd = np.linspace(np.min(xdata)*0.8, np.max(xdata)*1.2, 500)
-
-        # Preparar predicciones de modelos (clipeadas a 100)
-        y_ggs = None; y_rrsb = None; y_dw = None
-        if not np.isnan(fits['GGS']['params']).any():
-            m, Dm = fits['GGS']['params']
-            y_ggs = np.clip(GGS_model(dd, m, Dm), None, 100.0)
-        if not np.isnan(fits['RRSB']['params']).any():
-            m2, l = fits['RRSB']['params']
-            y_rrsb = np.clip(RRSB_model(dd, m2, l), None, 100.0)
-        if not np.isnan(fits['DoubleWeibull']['params']).any():
-            alpha, k1, k2, d80 = fits['DoubleWeibull']['params']
-            y_dw = np.clip(double_weibull(dd, alpha, k1, k2, d80), None, 100.0)
-
-        # Helper para estilo de puntos experimentales (borde negro, fondo blanco, pequeño)
-        exp_marker_kwargs = {'marker':'o', 'markersize':5, 'markeredgewidth':0.8,
-                             'markeredgecolor':'k', 'markerfacecolor':'white', 'linestyle':'None'}
-
-        # Dibujar según opción
-        fig, ax = plt.subplots(figsize=(8,4))
-        # fondo plomo suave fuera del axes
-        fig.patch.set_facecolor("#e9e9e9")  # área fuera del recuadro (plomo suave)
-        ax.set_facecolor("white")           # área de trazado en blanco
-
-        if graf_option == "Comparación de perfiles":
-            ax.plot(xdata, ydata, **exp_marker_kwargs, label='Experimental', zorder=5)
-            # todas las curvas en negro, distintas lineas
-            if y_ggs is not None:
-                m, Dm = fits['GGS']['params']
-                ax.plot(dd, y_ggs, '-', color='k', label=f'GGS (m={m:.3f}, Dm={Dm:.3f})', linewidth=0.9, zorder=3)
-            if y_rrsb is not None:
-                m2, l = fits['RRSB']['params']
-                ax.plot(dd, y_rrsb, '--', color='k', label=f'RRSB (m={m2:.3f}, l={l:.3f})', linewidth=0.9, zorder=2)
-            if y_dw is not None:
-                alpha, k1, k2, d80 = fits['DoubleWeibull']['params']
-                ax.plot(dd, y_dw, ':', color='k', label=f'DW (α={alpha:.3f},k1={k1:.3f},k2={k2:.3f},d80={d80:.2f})', linewidth=0.9, zorder=1)
-
-            ax.set_title("Comparación de perfiles")
-            ax.set_xlabel("Tamaño (µm)")
-            ax.set_ylabel("%F(d)")
-            ax.set_ylim(0, 100)
-            ax.set_yticks(np.arange(0, 101, 10))  # 0 a 100 en pasos de 10
-            ax.xaxis.set_major_locator(plt.MaxNLocator(8))
-            ax.grid(True, ls='--', alpha=0.5)
-            ax.legend()
-
-        elif graf_option == "Diagrama GGS (log-log)":
-            # log-log: x log scale, y log scale (sin forzar límite y a 10^2)
-            ax.set_xscale('log')
-            ax.set_yscale('log')
-            # puntos experimentales como 'x' negras (evitar ceros)
-            safe_y = np.clip(ydata, 1e-6, 100.0)
-            ax.plot(xdata, safe_y, 'x', markersize=6, markeredgewidth=1.0, markeredgecolor='k', label='Experimental', zorder=5)
-            if y_ggs is not None:
-                ax.plot(dd, np.clip(y_ggs, 1e-6, 100.0), '-', linewidth=0.8, color='k', label='GGS', zorder=3)
-            ax.set_title("Diagrama GGS (log-log)")
-            ax.set_xlabel("Tamaño (µm) [escala log]")
-            ax.set_ylabel("%F(d) [escala log]")
-            # dar espacio en extremos (no empezar desde el 0 ni cortar en el borde)
-            xmin = np.min(xdata); xmax = np.max(xdata)
-            ax.set_xlim(xmin*0.7, xmax*1.3)
-            # para Y, dejar que matplotlib seleccione pero asegurar un tope superior cercano a 110 para estética si necesario
-            # no forzamos 1e-6 inferior, ni 1e2 superior estrictamente
-            ax.grid(True, which='both', ls='--', alpha=0.5)
-            ax.legend()
-
-        elif graf_option == "Diagrama RRSB (log-x, transform y)":
-            # x en log, y = log( ln(1/(1-(%F/100))) )
-            ax.set_xscale('log')
-            ax.set_title("Diagrama RRSB")
-            ax.set_xlabel("Tamaño (µm) [escala log]")
-            ax.set_ylabel("Log[ ln( 1 / (1 - (%F/100)) ) ]")
-
-            # elegir la serie modelo preferente: RRSB > GGS > DW
-            chosen_y = None; chosen_label = None
-            if y_rrsb is not None:
-                chosen_y = y_rrsb; chosen_label = 'RRSB'
-            elif y_ggs is not None:
-                chosen_y = y_ggs; chosen_label = 'GGS'
-            elif y_dw is not None:
-                chosen_y = y_dw; chosen_label = 'DW'
-
-            def transform_rrsb(y_percent):
-                y = np.minimum(99.9999, np.maximum(1e-8, y_percent))
-                return np.log(np.log(1.0 / (1.0 - (y / 100.0))))
-
-            # puntos experimentales transformados
-            ydata_trans = transform_rrsb(ydata)
-            ax.plot(xdata, ydata_trans, 'x', markersize=6, markeredgewidth=1.0, markeredgecolor='k', label='Experimental (transform)', zorder=5)
-
-            if chosen_y is not None:
-                y_model_trans = transform_rrsb(chosen_y)
-                ax.plot(dd, y_model_trans, '-', linewidth=0.9, color='k', label=f'{chosen_label} (transform)', zorder=3)
-
-            # establecer límites de x con espacio alrededor
-            xmin = np.min(xdata); xmax = np.max(xdata)
-            ax.set_xlim(xmin*0.7, xmax*1.3)
-            ax.grid(True, ls='--', alpha=0.5)
-            ax.legend()
-
-            # calcular d_63.2 usando la curva del modelo elegido (si existe)
-            d63_info = None
-            if chosen_y is not None:
-                try:
-                    f_inv = interp1d(chosen_y, dd, fill_value="extrapolate", bounds_error=False)
-                    d63 = float(f_inv(63.2))
-                    d63_info = d63
-                except Exception:
-                    d63_info = None
-            if d63_info is not None and not np.isnan(d63_info):
-                st.info(f"El d_63.2 = {d63_info:.4f} µm (calculado por interpolación/extrapolación sobre la curva del modelo seleccionado).")
-            else:
-                st.info("No fue posible calcular d_63.2 con los datos/modelos disponibles.")
-
-        elif graf_option == "Diagrama DW (decimal)":
-            # escala decimal normal x vs %F(d)m
-            ax.plot(xdata, ydata, **exp_marker_kwargs, label='Experimental', zorder=5)
-            if y_dw is not None:
-                # curva continua en negro
-                ax.plot(dd, y_dw, '-', linewidth=0.9, color='k', label='Doble Weibull', zorder=3)
-            ax.set_title("Diagrama DW")
-            ax.set_xlabel("Tamaño (µm)")
-            ax.set_ylabel("%F(d)")
-            ax.set_ylim(0, 100)
-            ax.set_yticks(np.arange(0, 101, 10))
-            ax.xaxis.set_major_locator(plt.MaxNLocator(8))
-            ax.grid(True, ls='--', alpha=0.5)
-            ax.legend()
-
-        # Mostrar figura con tamaño comparable a la tabla
-        st.pyplot(fig, use_container_width=True)
-
-        if best[1]['FO'] > 1e6:
-            st.warning("Ningún modelo representa bien los datos experimentales (F.O. muy grande).")
-        else:
-            st.success(f"El mejor modelo que representa los resultados experimentales es {best_model_name} (F.O. = {best[1]['FO']:.6g}).")
+        st.markdown("**Resultados Distribución DW**")
+        dw_params = fits['DoubleWeibull']['params']
+        df_dw = pd.DataFrame([{
+            "α": dw_params[0], "k1": dw_params[1], "k2": dw_params[2], "d80": dw_params[3],
+            "Σε²": sum_eps['DW'], "F.O.": fits['DoubleWeibull']['FO']
+        }])
+        st.table(df_dw.style.format({"α":"{:.4f}","k1":"{:.4f}","k2":"{:.4f}","d80":"{:.4f}","Σε²":"{:.2e}","F.O.":"{:.2e}"}))
 
     # Navegación
     col1, col2 = st.columns(2)
@@ -1171,6 +968,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
