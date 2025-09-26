@@ -637,8 +637,7 @@ def page_4():
                     col_tbl, col_interp = st.columns([1,1])
                     with col_tbl:
                         st.subheader("Tabla Folk & Ward")
-                        mostrar_indice = st.checkbox("Mostrar índice", value=True)
-                        st.table(folk_tbl.style.format({'Valor':'{:.3f}'}), hide_index=not mostrar_indice)
+                        st.table(folk_tbl.style.format({'Valor':'{:.3f}'}))
 
                     with col_interp:
                         st.subheader("Interpretación Folk & Ward")
@@ -987,6 +986,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
