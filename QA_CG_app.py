@@ -988,7 +988,7 @@ def page_5():
         # Transformación segura
         def transform_rrsb(y_percent):
             y = np.minimum(99.9999, np.maximum(1e-8, y_percent))
-            return np.log(np.log(1.0 / (1.0 - (y / 100.0)))))
+            return np.log(np.log(1.0 / (1.0 - (y / 100.0))))
         # Curva del modelo (RRSB) transformada: plotear primero (si existe)
         if y_rrsb_plot is not None:
             y_rrsb_trans = transform_rrsb(y_rrsb_plot)
@@ -1101,6 +1101,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
