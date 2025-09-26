@@ -757,7 +757,6 @@ def page_5():
         st.error("No hay resultados para ajustar. Regresa a DATOS EXPERIMENTALES y pulsa EJECUTAR.")
         return
 
-    # Preparar datos para ajuste (excluir fila TOTAL)
     df_fit = results.iloc[:-1].copy()
     mask = (df_fit['Tamaño inferior (µm)'] > 0) & (~np.isnan(df_fit['%F(d)']))
     d = df_fit['Tamaño inferior (µm)'][mask].astype(float).values
@@ -765,25 +764,23 @@ def page_5():
 
     if len(d) < 3:
         st.warning("Se requieren al menos 3 puntos válidos para ajuste.")
-        st.write("Si necesitas más puntos, vuelve a DATOS EXPERIMENTALES y completa la tabla.")
         return
 
     if st.button("AJUSTAR"):
-        # ------------------ GGS ------------------
+        # ----------- GGS -----------
         try:
-            x0 = [1.0, np.max(d)]  # dmax inicial
+            x0 = [1.0, np.max(d)]
             def f_ggs(params):
                 m, dmax = params
                 ypred = GGS_model(d, m, dmax)
                 return np.sum((y_exp - ypred)**2)
-            res1 = minimize(f_ggs, x0, bounds=[(0.01,10),(1e-6, max(d)*10)])
+            res1 = minimize(f_ggs, x0, bounds=[(0.01,10),(1e-6,max(d)*10)])
             FO_ggs = float(res1.fun)
             ggs_params = res1.x.tolist()
-        except Exception:
-            FO_ggs = np.inf
-            ggs_params = [np.nan, np.nan]
+        except:
+            FO_ggs = np.inf; ggs_params = [np.nan, np.nan]
 
-        # ------------------ RRSB ------------------
+        # ----------- RRSB -----------
         try:
             x0 = [1.0, np.median(d)]
             def f_rrsb(params):
@@ -793,11 +790,10 @@ def page_5():
             res2 = minimize(f_rrsb, x0, bounds=[(0.01,10),(1e-6,max(d)*10)])
             FO_rrsb = float(res2.fun)
             rrsb_params = res2.x.tolist()
-        except Exception:
-            FO_rrsb = np.inf
-            rrsb_params = [np.nan, np.nan]
+        except:
+            FO_rrsb = np.inf; rrsb_params = [np.nan, np.nan]
 
-        # ---------------- Double Weibull ----------------
+        # ----------- Double Weibull -----------
         try:
             try:
                 inv = interp1d(df_fit['%F(d)'], df_fit['Tamaño inferior (µm)'], fill_value="extrapolate", bounds_error=False)
@@ -815,11 +811,9 @@ def page_5():
             res3 = minimize(f_double, x0, bounds=bounds_dw)
             FO_dw = float(res3.fun)
             dw_params = res3.x.tolist()
-        except Exception:
-            FO_dw = np.inf
-            dw_params = [np.nan]*4
+        except:
+            FO_dw = np.inf; dw_params = [np.nan]*4
 
-        # Guardar ajustes
         st.session_state.models_fit = {
             'GGS': {'FO':FO_ggs, 'params':ggs_params},
             'RRSB': {'FO':FO_rrsb, 'params':rrsb_params},
@@ -827,59 +821,66 @@ def page_5():
         }
         st.success("Ajustes completados.")
 
-    # ----------- Mostrar tabla comparativa ----------
+    # ------------------- Tablas de parámetros por modelo -------------------
     if st.session_state.get("models_fit", None):
         fits = st.session_state.models_fit
-        table_data = []
-        for i in range(len(d)):
-            xi = d[i]
-            ye = y_exp[i]
-            row = {"Tamaño inferior (µm)": xi, "%F(d)e": ye}
 
-            # GGS
-            if not np.isnan(fits['GGS']['params']).any():
-                m, Dm = fits['GGS']['params']
-                y_g = float(GGS_model([xi], m, Dm)[0])
-                y_g_clip = min(100.0, y_g)
-                row["%F(d)m_GGS"] = y_g_clip
-                row["ε²_GGS"] = ((ye - y_g_clip)/ye)**2 if ye != 0 else np.nan
-            else:
-                row["%F(d)m_GGS"] = np.nan
-                row["ε²_GGS"] = np.nan
+        # Función auxiliar para calcular sumatoria de errores al cuadrado
+        def sum_errors_squared(model_name, y_model):
+            if y_model is None:
+                return np.nan
+            return np.sum(((y_exp - y_model)/y_exp)**2)
 
-            # RRSB
-            if not np.isnan(fits['RRSB']['params']).any():
-                m2, l = fits['RRSB']['params']
-                y_r = float(RRSB_model([xi], m2, l)[0])
-                y_r_clip = min(100.0, y_r)
-                row["%F(d)m_RRSB"] = y_r_clip
-                row["ε²_RRSB"] = ((ye - y_r_clip)/ye)**2 if ye != 0 else np.nan
-            else:
-                row["%F(d)m_RRSB"] = np.nan
-                row["ε²_RRSB"] = np.nan
+        # Preparar predicciones para cada modelo
+        y_ggs = y_rrsb = y_dw = None
+        if not np.isnan(fits['GGS']['params']).any():
+            m, dmax = fits['GGS']['params']
+            y_ggs = np.clip(GGS_model(d, m, dmax), None, 100.0)
+        if not np.isnan(fits['RRSB']['params']).any():
+            m2, l = fits['RRSB']['params']
+            y_rrsb = np.clip(RRSB_model(d, m2, l), None, 100.0)
+        if not np.isnan(fits['DoubleWeibull']['params']).any():
+            alpha, k1, k2, d80 = fits['DoubleWeibull']['params']
+            y_dw = np.clip(double_weibull(d, alpha, k1, k2, d80), None, 100.0)
 
-            # Double Weibull
-            if not np.isnan(fits['DoubleWeibull']['params']).any():
-                alpha, k1, k2, d80 = fits['DoubleWeibull']['params']
-                y_dw = float(double_weibull([xi], alpha, k1, k2, d80)[0])
-                y_dw_clip = min(100.0, y_dw)
-                row["%F(d)m_DW"] = y_dw_clip
-                row["ε²_DW"] = ((ye - y_dw_clip)/ye)**2 if ye != 0 else np.nan
-            else:
-                row["%F(d)m_DW"] = np.nan
-                row["ε²_DW"] = np.nan
+        # ---------- Tabla GGS ----------
+        ggs_table = pd.DataFrame([{
+            'dmax (µm)': ggs_params[1],
+            'm': ggs_params[0],
+            'Σε²': sum_errors_squared('GGS', y_ggs),
+            'F.O.': fits['GGS']['FO']
+        }])
+        st.subheader("Parámetros GGS")
+        st.table(ggs_table.style.format("{:.4f}"))
 
-            table_data.append(row)
+        # ---------- Tabla RRSB ----------
+        rrsb_table = pd.DataFrame([{
+            'l (µm)': rrsb_params[1],
+            'm': rrsb_params[0],
+            'Σε²': sum_errors_squared('RRSB', y_rrsb),
+            'F.O.': fits['RRSB']['FO']
+        }])
+        st.subheader("Parámetros RRSB")
+        st.table(rrsb_table.style.format("{:.4f}"))
 
-        df_comp = pd.DataFrame(table_data)
-        df_comp = df_comp[[
-            "Tamaño inferior (µm)", "%F(d)e",
-            "%F(d)m_GGS","ε²_GGS",
-            "%F(d)m_RRSB","ε²_RRSB",
-            "%F(d)m_DW","ε²_DW"
-        ]]
-        st.subheader("Tabla comparativa: Experimental vs Modelos")
-        st.dataframe(df_comp.style.format("{:.2f}"), height=320)
+        # ---------- Tabla Doble Weibull ----------
+        dw_table = pd.DataFrame([{
+            'α': dw_params[0],
+            'k1': dw_params[1],
+            'k2': dw_params[2],
+            'd80 (µm)': dw_params[3],
+            'Σε²': sum_errors_squared('DoubleWeibull', y_dw),
+            'F.O.': fits['DoubleWeibull']['FO']
+        }])
+        st.subheader("Parámetros Doble Weibull")
+        st.table(dw_table.style.format("{:.4f}"))
+
+
+
+
+
+
+    
 
     # ----------- Comparación de FO y gráficos -----------
     if st.session_state.models_fit:
@@ -1064,6 +1065,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
