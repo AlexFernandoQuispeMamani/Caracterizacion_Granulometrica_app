@@ -806,20 +806,20 @@ def RRSB_model(d, m, l):
     return 100.0 * (1 - np.exp(-(d / l) ** m))
 
 
-def double_weibull(d, alpha, k1, k2, d80):
+def double_weibull(d, alpha, delta1, delta2, d80):
     """
-    Modelo Doble Weibull (mezcla de dos Weibull).
-    d     : array de tamaños de partícula
-    alpha : peso relativo de la primera distribución (0<alpha<1)
-    k1, k2: parámetros de forma
-    d80   : tamaño característico (usado para generar d1 y d2 heurísticamente)
+    Modelo Doble Weibull basado en d80 y ln(0.2).
+    d      : array de tamaños de partícula
+    alpha  : peso relativo de la primera distribución (0<alpha<1)
+    delta1 : exponente de la primera Weibull
+    delta2 : exponente de la segunda Weibull
+    d80    : tamaño característico
     """
-    d1 = d80 * 0.6
-    d2 = d80 * 1.4
     d = np.array(d, dtype=float)
+    ln02 = np.log(0.2)  # negativo (-1.609...)
     return 100.0 * (
-        alpha * (1 - np.exp(-(d / d1) ** k1)) +
-        (1 - alpha) * (1 - np.exp(-(d / d2) ** k2))
+        alpha * (1 - np.exp(ln02 * (d / d80) ** delta1)) +
+        (1 - alpha) * (1 - np.exp(ln02 * (d / d80) ** delta2))
     )
             
 # ---------- PÁGINA 5: Selección del Modelo ----------
@@ -1311,6 +1311,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
