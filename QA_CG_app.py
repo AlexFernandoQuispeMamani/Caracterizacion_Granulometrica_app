@@ -1147,6 +1147,17 @@ def page_5():
 
     # Mostrar figura
     st.pyplot(fig, use_container_width=True)
+    
+    # ------------------- Conclusión automática -------------------
+    fits = st.session_state.models_fit
+
+    # Buscar el modelo con menor F.O.
+    fo_values = {k: v['FO'] for k,v in fits.items()}
+    best_model = min(fo_values, key=fo_values.get)
+    best_fo = fo_values[best_model]
+
+    # Mostrar comentario
+    st.markdown(f"**CONCLUSIÓN:** El modelo que mejor describe los puntos experimentales de la muestra es el modelo **{best_model}** porque presenta un valor de F.O. de **{best_fo:.4f}**.")
 
     # ------------------- Navegación -------------------
     col1, col2 = st.columns(2)
@@ -1225,6 +1236,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
