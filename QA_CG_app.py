@@ -952,9 +952,9 @@ def page_5():
             ]
 
             bounds_dw = [
-                (0.0, 1.0),    # alpha
-                (0.01, 10.0),  # k1
-                (0.01, 10.0),  # k2
+                (0.0, 1.0),    # δ0​
+                (0.01, 10.0),  # δ1​
+                (0.01, 10.0),  # δ2
                 (1e-3, max(d)*10)  # d80
             ]
 
@@ -1078,9 +1078,9 @@ def page_5():
     }])
 
     dw_table = pd.DataFrame([{
-        'α': dw_params[0],
-        'k1': dw_params[1],
-        'k2': dw_params[2],
+        'δ0​': dw_params[0],
+        'δ1': dw_params[1],
+        'δ2': dw_params[2],
         'd80 (µm)': dw_params[3],
         'Σε²': sum_errors_squared(y_dw),
         'F.O.': fits['DoubleWeibull']['FO']
@@ -1311,6 +1311,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
