@@ -454,7 +454,7 @@ def page_3():
         ax.set_yticks(np.arange(0, 101, 10))
         ax.grid(True, which='both', ls='--', alpha=0.5)
 
-    elif escala == "Escala semilogarítmica (X log)":
+    elif escala == "Escala semilogarítmica":
         # eje X en log: calcular límites positivos y ampliar un poco
         ax.set_xscale('log')
         xpos = x_inf.dropna().values
@@ -484,7 +484,7 @@ def page_3():
 
     ax.set_title(grafico)
     st.pyplot(fig)
-
+    
     # Navegación
     col1, col2 = st.columns(2)
     with col1:
@@ -1311,6 +1311,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
