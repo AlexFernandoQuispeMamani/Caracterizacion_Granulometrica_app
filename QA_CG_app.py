@@ -851,7 +851,7 @@ def page_5():
 
         # ----------- GGS -----------
         try:
-            x0 = [1.0, np.max(d)]
+            x0 = [0.5, np.max(d)]
             def f_ggs(params):
                 m, dmax = params
                 ypred = GGS_model(d, m, dmax)
@@ -866,7 +866,7 @@ def page_5():
 
         # ----------- RRSB -----------
         try:
-            x0 = [1.0, np.median(d)]
+            x0 = [0.5, np.median(d)]
             def f_rrsb(params):
                 m, l = params
                 ypred = RRSB_model(d, m, l)
@@ -889,7 +889,7 @@ def page_5():
             except:
                 init_d80 = np.median(d)
 
-            x0 = [0.5, 1.0, 1.0, init_d80]
+            x0 = [0.5, 0.9, 0.9, init_d80]
             bounds_dw = [(0.0,1.0),(0.01,10.0),(0.01,10.0),(1e-3,max(d)*10)]
 
             def f_double(params):
@@ -1236,6 +1236,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
