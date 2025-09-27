@@ -842,16 +842,25 @@ def page_5():
         return
 
     if st.button("AJUSTAR"):
+        n = len(d)  # número de puntos válidos
+
+        # Función para calcular F.O. según tu definición
+        def FO_calc(y_model, y_exp):
+            eps2 = ((y_exp - y_model) / y_exp) ** 2  # ε²_i = ((F_exp - F_model)/F_exp)^2
+            return np.sqrt(np.sum(eps2) / (n - 2))
+
         # ----------- GGS -----------
         try:
             x0 = [1.0, np.max(d)]
             def f_ggs(params):
                 m, dmax = params
                 ypred = GGS_model(d, m, dmax)
-                return np.sum((y_exp - ypred)**2)
+                eps2 = ((y_exp - ypred) / y_exp) ** 2
+                return np.sqrt(np.sum(eps2) / (n - 2))
             res1 = minimize(f_ggs, x0, bounds=[(0.01,10),(1e-6,max(d)*10)])
-            FO_ggs = float(res1.fun)
             ggs_params = res1.x.tolist()
+            y_ggs_pred = GGS_model(d, *ggs_params)
+            FO_ggs = FO_calc(y_ggs_pred, y_exp)
         except:
             FO_ggs = np.inf; ggs_params = [np.nan, np.nan]
 
@@ -861,10 +870,12 @@ def page_5():
             def f_rrsb(params):
                 m, l = params
                 ypred = RRSB_model(d, m, l)
-                return np.sum((y_exp - ypred)**2)
+                eps2 = ((y_exp - ypred) / y_exp) ** 2
+                return np.sqrt(np.sum(eps2) / (n - 2))
             res2 = minimize(f_rrsb, x0, bounds=[(0.01,10),(1e-6,max(d)*10)])
-            FO_rrsb = float(res2.fun)
             rrsb_params = res2.x.tolist()
+            y_rrsb_pred = RRSB_model(d, *rrsb_params)
+            FO_rrsb = FO_calc(y_rrsb_pred, y_exp)
         except:
             FO_rrsb = np.inf; rrsb_params = [np.nan, np.nan]
 
@@ -877,24 +888,31 @@ def page_5():
                     init_d80 = np.median(d)
             except:
                 init_d80 = np.median(d)
+
             x0 = [0.5, 1.0, 1.0, init_d80]
             bounds_dw = [(0.0,1.0),(0.01,10.0),(0.01,10.0),(1e-3,max(d)*10)]
+
             def f_double(params):
                 alpha, k1, k2, d80 = params
                 ypred = double_weibull(d, alpha, k1, k2, d80)
-                return np.sum((y_exp - ypred)**2)
+                eps2 = ((y_exp - ypred) / y_exp) ** 2
+                return np.sqrt(np.sum(eps2) / (n - 2))
+
             res3 = minimize(f_double, x0, bounds=bounds_dw)
-            FO_dw = float(res3.fun)
             dw_params = res3.x.tolist()
+            y_dw_pred = double_weibull(d, *dw_params)
+            FO_dw = FO_calc(y_dw_pred, y_exp)
         except:
             FO_dw = np.inf; dw_params = [np.nan]*4
 
+        # Guardar resultados en session_state
         st.session_state.models_fit = {
-            'GGS': {'FO':FO_ggs, 'params':ggs_params},
-            'RRSB': {'FO':FO_rrsb, 'params':rrsb_params},
-            'DoubleWeibull': {'FO':FO_dw, 'params':dw_params}
+            'GGS': {'FO': FO_ggs, 'params': ggs_params},
+            'RRSB': {'FO': FO_rrsb, 'params': rrsb_params},
+            'DoubleWeibull': {'FO': FO_dw, 'params': dw_params}
         }
-        st.success("Ajustes completados.")
+
+        st.success("Ajustes completados")
 
     # ----------- Recuperar parámetros desde session_state ---------
     if not st.session_state.get("models_fit", None):
@@ -1207,6 +1225,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
