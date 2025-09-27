@@ -118,7 +118,7 @@ def compute_analysis(df_in, mode):
 
     # Tamaño promedio
     df['Tamaño promedio (µm)'] = (df['Tamaño superior (µm)'] + df['Tamaño inferior (µm)'])/2.0
-
+    
     # %Peso
     # Evitar división por cero
     if total_weight == 0:
@@ -851,59 +851,121 @@ def page_5():
 
         # ----------- GGS -----------
         try:
-            x0 = [0.5, np.max(d)]
-            def f_ggs(params):
-                m, dmax = params
-                ypred = GGS_model(d, m, dmax)
-                eps2 = ((y_exp - ypred) / y_exp) ** 2
-                return np.sqrt(np.sum(eps2) / (n - 1))
-            res1 = minimize(f_ggs, x0, bounds=[(0.01,10),(1e-6,max(d)*10)])
+            # Lista de inicializaciones
+            x0_list = [
+                [0.5, np.max(d)],          # similar a tu Excel
+                [1.0, np.median(d)*2],     # otra variación
+                [0.8, np.mean(d)],         # otra variación
+            ]
+
+            best = None
+            for x0 in x0_list:
+                res = minimize(
+                    f_ggs, 
+                    x0, 
+                    method='trust-constr',
+                    bounds=[(0.01, 10), (1e-6, max(d)*10)]
+                )
+                if best is None or res.fun < best.fun:
+                    best = res
+
+            res1 = best  # guardar el mejor
             ggs_params = res1.x.tolist()
             y_ggs_pred = GGS_model(d, *ggs_params)
             FO_ggs = FO_calc(y_ggs_pred, y_exp)
-        except:
-            FO_ggs = np.inf; ggs_params = [np.nan, np.nan]
+
+        except Exception as e:
+            FO_ggs = np.inf
+            ggs_params = [np.nan, np.nan]
 
         # ----------- RRSB -----------
         try:
-            x0 = [0.5, np.median(d)]
             def f_rrsb(params):
                 m, l = params
                 ypred = RRSB_model(d, m, l)
                 eps2 = ((y_exp - ypred) / y_exp) ** 2
                 return np.sqrt(np.sum(eps2) / (n - 1))
-            res2 = minimize(f_rrsb, x0, bounds=[(0.01,10),(1e-6,max(d)*10)])
+
+            # Lista de inicializaciones
+            x0_list = [
+                [0.5, np.median(d)],     # clásico
+                [1.0, np.mean(d)],       # variación
+                [0.8, np.max(d)/2],      # otra opción
+            ]
+
+            best = None
+            for x0 in x0_list:
+                res = minimize(
+                    f_rrsb,
+                    x0,
+                    method='trust-constr',
+                    bounds=[(0.01, 10), (1e-6, max(d)*10)]
+                )
+                if best is None or res.fun < best.fun:
+                    best = res
+
+            res2 = best
             rrsb_params = res2.x.tolist()
             y_rrsb_pred = RRSB_model(d, *rrsb_params)
             FO_rrsb = FO_calc(y_rrsb_pred, y_exp)
-        except:
-            FO_rrsb = np.inf; rrsb_params = [np.nan, np.nan]
+
+        except Exception as e:
+            FO_rrsb = np.inf
+            rrsb_params = [np.nan, np.nan]
 
         # ----------- Double Weibull -----------
         try:
-            try:
-                inv = interp1d(df_fit['%F(d)'], df_fit['Tamaño inferior (µm)'], fill_value="extrapolate", bounds_error=False)
-                init_d80 = float(inv(80.0))
-                if init_d80 <= 0 or np.isnan(init_d80):
-                    init_d80 = np.median(d)
-            except:
-                init_d80 = np.median(d)
-
-            x0 = [0.5, 0.9, 0.9, init_d80]
-            bounds_dw = [(0.0,1.0),(0.01,10.0),(0.01,10.0),(1e-3,max(d)*10)]
-
             def f_double(params):
                 alpha, k1, k2, d80 = params
                 ypred = double_weibull(d, alpha, k1, k2, d80)
                 eps2 = ((y_exp - ypred) / y_exp) ** 2
                 return np.sqrt(np.sum(eps2) / (n - 1))
 
-            res3 = minimize(f_double, x0, bounds=bounds_dw)
+            # Estimación inicial de d80 (si falla usamos mediana)
+            try:
+                inv = interp1d(
+                    df_fit['%F(d)'], df_fit['Tamaño inferior (µm)'],
+                    fill_value="extrapolate", bounds_error=False
+                )
+                init_d80 = float(inv(80.0))
+                if init_d80 <= 0 or np.isnan(init_d80):
+                    init_d80 = np.median(d)
+            except:
+                init_d80 = np.median(d)
+
+            # Lista de inicializaciones
+            x0_list = [
+                [0.5, 0.9, 0.9, init_d80],
+                [0.6, 1.0, 1.0, np.mean(d)],
+                [0.4, 0.8, 0.8, np.max(d)/2],
+            ]
+
+            bounds_dw = [
+                (0.0, 1.0),    # alpha
+                (0.01, 10.0),  # k1
+                (0.01, 10.0),  # k2
+                (1e-3, max(d)*10)  # d80
+            ]
+
+            best = None
+            for x0 in x0_list:
+                res = minimize(
+                    f_double,
+                    x0,
+                    method='trust-constr',
+                    bounds=bounds_dw
+                )
+                if best is None or res.fun < best.fun:
+                    best = res
+
+            res3 = best
             dw_params = res3.x.tolist()
             y_dw_pred = double_weibull(d, *dw_params)
             FO_dw = FO_calc(y_dw_pred, y_exp)
-        except:
-            FO_dw = np.inf; dw_params = [np.nan]*4
+
+        except Exception as e:
+            FO_dw = np.inf
+            dw_params = [np.nan]*4
 
         # Guardar resultados en session_state
         st.session_state.models_fit = {
