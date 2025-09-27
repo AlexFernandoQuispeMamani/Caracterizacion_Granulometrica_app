@@ -861,7 +861,6 @@ def page_5():
             x0_list = [
                 [0.5, np.max(d)],       # como Excel
                 [1.0, np.median(d)*2],  # otra opción
-                [0.8, np.mean(d)],      # tercera opción
             ]
 
             best = None
@@ -1308,6 +1307,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
