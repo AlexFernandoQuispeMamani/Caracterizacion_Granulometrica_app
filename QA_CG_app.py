@@ -793,8 +793,7 @@ def GGS_model(d, m, dmax):
     """
     d = np.array(d, dtype=float)
     with np.errstate(divide='ignore', invalid='ignore'):
-        return 100.0 * (1.0 / (1.0 + (d / dmax) ** (-m)))
-
+        return 100.0 * (d / dmax) ** m
 
 def RRSB_model(d, m, l):
     """
@@ -1312,6 +1311,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
