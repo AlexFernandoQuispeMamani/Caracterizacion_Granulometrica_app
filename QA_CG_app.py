@@ -357,7 +357,7 @@ def page_3():
             fmt[c] = "{:.2f}"
         else:
             fmt[c] = "{}"
-    st.markdown("**Tabla de resultados** (última fila = TOTAL).")
+    st.markdown("**Tabla de resultados**")
     st.dataframe(results.style.format(fmt), height=320)
 
     # Selección de gráfico y escala
@@ -367,11 +367,11 @@ def page_3():
         "Diagrama de simple distribución",
         "Diagrama Acumulativo de Subtamaño",
         "Diagrama Acumulativo de Sobretamaño",
-        "Diagrama Acumulativo (Combinación)",
-        "Curvas granulométricas (Combinación 2,3,4)"
+        "Diagrama Acumulativo",
+        "Curvas granulométricas de la muestra"
     ], index=0, key='grafico_select')
 
-    escala = st.selectbox("Escala", ["Escala decimal", "Escala semilogarítmica (X log)", "Escala logarítmica (ambos log)"], index=0, key='escala_select')
+    escala = st.selectbox("Escala", ["Escala decimal", "Escala semilogarítmica", "Escala logarítmica"], index=0, key='escala_select')
 
     # Usar Tamaño inferior como X en curvas acumulativas y de distribución
     plot_df = results.iloc[:-1].copy()  # quitar fila TOTAL
@@ -426,13 +426,13 @@ def page_3():
         ax.set_xlabel("Tamaño inferior (µm)")
         ax.set_ylabel("%R(d)")
 
-    elif grafico == "Diagrama Acumulativo (Combinación)":
+    elif grafico == "Diagrama Acumulativo":
         ax.scatter(x_inf, yf, s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4, label='%F(d)')
         ax.plot(x_inf, yf, color='k', linewidth=lw)
         ax.scatter(x_inf, yr, marker='x', s=36, linewidths=1.2, edgecolors='k', facecolors='k', zorder=4, label='%R(d)')
         ax.plot(x_inf, yr, color='k', linewidth=lw)
         ax.set_xlabel("Tamaño inferior (µm)")
-        ax.set_ylabel("Porcentaje")
+        ax.set_ylabel("%")
         ax.legend()
 
     else:  # Curvas granulométricas (Combinación 2,3,4)
@@ -443,7 +443,7 @@ def page_3():
         ax.scatter(x_inf, yr, marker='x', s=36, linewidths=1.2, edgecolors='k', facecolors='k', zorder=4, label='%R(d)')
         ax.plot(x_inf, yr, color='k', linewidth=lw)
         ax.set_xlabel("Tamaño inferior (µm)")
-        ax.set_ylabel("Porcentaje")
+        ax.set_ylabel("%")
         ax.legend()
 
     # --- Escalas y límites ---
@@ -1311,6 +1311,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
