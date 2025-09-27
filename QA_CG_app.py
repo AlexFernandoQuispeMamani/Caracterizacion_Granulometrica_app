@@ -851,32 +851,42 @@ def page_5():
 
         # ----------- GGS -----------
         try:
+            def f_ggs(params):
+                m, dmax = params
+                ypred = GGS_model(d, m, dmax)
+                eps2 = ((y_exp - ypred) / y_exp) ** 2
+                return np.sqrt(np.sum(eps2) / (n - 1))
+
             # Lista de inicializaciones
             x0_list = [
-                [0.5, np.max(d)],          # similar a tu Excel
-                [1.0, np.median(d)*2],     # otra variación
-                [0.8, np.mean(d)],         # otra variación
+                [0.5, np.max(d)],       # como Excel
+                [1.0, np.median(d)*2],  # otra opción
+                [0.8, np.mean(d)],      # tercera opción
             ]
 
             best = None
             for x0 in x0_list:
                 res = minimize(
-                    f_ggs, 
-                    x0, 
+                    f_ggs,
+                    x0,
                     method='trust-constr',
                     bounds=[(0.01, 10), (1e-6, max(d)*10)]
                 )
                 if best is None or res.fun < best.fun:
                     best = res
 
-            res1 = best  # guardar el mejor
-            ggs_params = res1.x.tolist()
-            y_ggs_pred = GGS_model(d, *ggs_params)
-            FO_ggs = FO_calc(y_ggs_pred, y_exp)
+            if best is not None and best.success:
+                res1 = best
+                ggs_params = res1.x.tolist()
+                y_ggs_pred = GGS_model(d, *ggs_params)
+                FO_ggs = FO_calc(y_ggs_pred, y_exp)
+            else:
+                ggs_params = [np.nan, np.nan]
+                FO_ggs = np.inf
 
         except Exception as e:
-            FO_ggs = np.inf
             ggs_params = [np.nan, np.nan]
+            FO_ggs = np.inf
 
         # ----------- RRSB -----------
         try:
@@ -1298,6 +1308,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
