@@ -847,7 +847,7 @@ def page_5():
         # Función para calcular F.O. según tu definición
         def FO_calc(y_model, y_exp):
             eps2 = ((y_exp - y_model) / y_exp) ** 2  # ε²_i = ((F_exp - F_model)/F_exp)^2
-            return np.sqrt(np.sum(eps2) / (n - 2))
+            return np.sqrt(np.sum(eps2) / (n - 1))
 
         # ----------- GGS -----------
         try:
@@ -856,7 +856,7 @@ def page_5():
                 m, dmax = params
                 ypred = GGS_model(d, m, dmax)
                 eps2 = ((y_exp - ypred) / y_exp) ** 2
-                return np.sqrt(np.sum(eps2) / (n - 2))
+                return np.sqrt(np.sum(eps2) / (n - 1))
             res1 = minimize(f_ggs, x0, bounds=[(0.01,10),(1e-6,max(d)*10)])
             ggs_params = res1.x.tolist()
             y_ggs_pred = GGS_model(d, *ggs_params)
@@ -871,7 +871,7 @@ def page_5():
                 m, l = params
                 ypred = RRSB_model(d, m, l)
                 eps2 = ((y_exp - ypred) / y_exp) ** 2
-                return np.sqrt(np.sum(eps2) / (n - 2))
+                return np.sqrt(np.sum(eps2) / (n - 1))
             res2 = minimize(f_rrsb, x0, bounds=[(0.01,10),(1e-6,max(d)*10)])
             rrsb_params = res2.x.tolist()
             y_rrsb_pred = RRSB_model(d, *rrsb_params)
@@ -896,7 +896,7 @@ def page_5():
                 alpha, k1, k2, d80 = params
                 ypred = double_weibull(d, alpha, k1, k2, d80)
                 eps2 = ((y_exp - ypred) / y_exp) ** 2
-                return np.sqrt(np.sum(eps2) / (n - 2))
+                return np.sqrt(np.sum(eps2) / (n - 1))
 
             res3 = minimize(f_double, x0, bounds=bounds_dw)
             dw_params = res3.x.tolist()
@@ -1236,6 +1236,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
