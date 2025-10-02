@@ -856,7 +856,7 @@ def double_weibull(d, alpha, delta1, delta2, d80):
         (1 - alpha) * (1 - np.exp(ln02 * (d / d80) ** delta2))
     )
             
-# ---------- PÁGINA 5: Selección del Modelo ----------
+#---------- PÁGINA 5: Selección del Modelo ----------
 def page_5():
     st.title("SELECCIÓN DEL MODELO")
     st.markdown("Ajuste de modelos: GGS, RRSB y Doble Weibull. Se estiman parámetros minimizando SSE (F.O.).")
@@ -867,373 +867,153 @@ def page_5():
 
     df_fit = results.iloc[:-1].copy()
     mask = (df_fit['Tamaño inferior (µm)'] > 0) & (~np.isnan(df_fit['%F(d)']))
-    d_raw = df_fit['Tamaño inferior (µm)'][mask].astype(float).values
-    y_raw = df_fit['%F(d)'][mask].astype(float).values
+    d = df_fit['Tamaño inferior (µm)'][mask].astype(float).values
+    y_exp = df_fit['%F(d)'][mask].astype(float).values
 
-    # --- LIMPIEZA Y ORDENAMIENTO (crítico) ---
-    valid_idx = ~np.isnan(d_raw) & ~np.isnan(y_raw)
-    d_clean = d_raw[valid_idx]
-    y_clean = y_raw[valid_idx]
-
-    if len(d_clean) < 3:
+    if len(d) < 3:
         st.warning("Se requieren al menos 3 puntos válidos para ajuste.")
         return
 
-    # Asegurar arrays numpy y orden ascendente por d
-    sort_idx = np.argsort(d_clean)
-    d = np.array(d_clean)[sort_idx].astype(float)
-    y_exp = np.array(y_clean)[sort_idx].astype(float)
-
-    # Evitar valores negativos extraños
-    y_exp = np.maximum(y_exp, 0.0)
-    d = np.maximum(d, 1e-9)
-
-    n = len(d)
-
-    # FO seguro (evita division por cero)
-    def FO_calc_safe(y_pred, y_obs):
-        y_obs_safe = np.maximum(y_obs, 1e-12)
-        eps2 = ((y_obs - y_pred) / y_obs_safe) ** 2
-        eps2 = eps2[~np.isnan(eps2) & ~np.isinf(eps2)]
-        if eps2.size == 0:
-            return np.inf
-        return np.sqrt(np.sum(eps2) / max(1, eps2.size - 1))
-
     if st.button("AJUSTAR"):
-        # -------------------------------------------------
-        # ---------- GGS (robusto y con estrategias) ------
-        # -------------------------------------------------
+        n = len(d)  # número de puntos válidos
+
+        # Función para calcular F.O. según tu definición
+        def FO_calc(y_model, y_exp):
+            eps2 = ((y_exp - y_model) / y_exp) ** 2  # ε²_i = ((F_exp - F_model)/F_exp)^2
+            return np.sqrt(np.sum(eps2) / (n - 1))
+
+        # ----------- GGS -----------
         try:
-            def f_ggs_wrapped(params, strategy="normal"):
+            def f_ggs(params):
                 m, dmax = params
+                ypred = GGS_model(d, m, dmax)
+                eps2 = ((y_exp - ypred) / y_exp) ** 2
+                return np.sqrt(np.sum(eps2) / (n - 1))
 
-                # validación
-                if not np.isfinite(m) or not np.isfinite(dmax):
-                    return 1e6
-                if m <= 0.0 or dmax <= 0.0:
-                    return 1e6
-
-                # preparar datos según estrategia
-                if strategy == "normal":
-                    y_adj = y_exp / np.max(y_exp) * 100.0 if np.max(y_exp) > 0 else y_exp.copy()
-                    d_fit = d.copy()
-                elif strategy == "ficticio":
-                    y_adj = y_exp.copy()
-                    d_fit = np.append(d, dmax)
-                    y_adj = np.append(y_adj, 100.0)
-                else:  # "restriccion" o default: no normalizar
-                    y_adj = y_exp.copy()
-                    d_fit = d.copy()
-
-                # predecir
-                try:
-                    ypred = GGS_model(d_fit, m, dmax)
-                except Exception:
-                    return 1e6
-
-                # proteger predicción
-                if np.any(~np.isfinite(ypred)):
-                    return 1e6
-
-                ypred = np.clip(ypred, 0.0, 100.0)
-
-                # máscara de validación
-                mask_valid = y_adj > 1e-12
-                if not np.any(mask_valid):
-                    return 1e6
-
-                y_adj_v = y_adj[mask_valid]
-                ypred_v = ypred[mask_valid]
-
-                # calcular eps2 robusto
-                denom = np.maximum(y_adj_v, 1e-12)
-                eps2 = ((y_adj_v - ypred_v) / denom) ** 2
-
-                if np.any(~np.isfinite(eps2)):
-                    return 1e6
-
-                return np.sqrt(np.sum(eps2) / max(1, eps2.size - 1))
-
+            # Lista de inicializaciones
             x0_list = [
-                [0.5, np.max(d)],
-                [1.0, np.median(d) * 1.5],
-                [0.8, np.percentile(d, 90)],
+                [0.5, np.max(d)],       # como Excel
+                [1.0, np.median(d)*2],  # otra opción
             ]
 
-            strategies = ["normal", "ficticio", "restriccion"]
             best = None
-            best_strategy = None
+            for x0 in x0_list:
+                res = minimize(
+                    f_ggs,
+                    x0,
+                    method='Powell',   # Powell es más parecido al GRG Nonlinear de Excel
+                    bounds=[(0.01, 10), (1e-6, max(d)*10)],
+                    options={'xtol': 1e-12, 'ftol': 1e-12, 'maxiter': 10000}
+                )
 
-            for strat in strategies:
-                for x0 in x0_list:
-                    bounds = [(0.01, 10.0), (1e-6, np.max(d) * 10.0)]
-                    if strat == "restriccion":
-                        bounds = [(0.01, 10.0), (np.max(d), np.max(d) * 1.5)]
+                if best is None or res.fun < best.fun:
+                    best = res
 
-                    try:
-                        res = minimize(
-                            f_ggs_wrapped,
-                            x0,
-                            args=(strat,),
-                            method='L-BFGS-B',
-                            bounds=bounds,
-                            options={'ftol': 1e-9, 'maxiter': 20000}
-                        )
-                    except Exception as e:
-                        # captura problemas del optimizador
-                        st.warning(f"GGS: optimizador falló con init {x0}, strat {strat}: {e}")
-                        continue
-
-                    if res is None:
-                        continue
-
-                    if best is None or res.fun < best.fun:
-                        best = res
-                        best_strategy = strat
-
-            if best is not None and getattr(best, "x", None) is not None and best.success:
-                ggs_params = best.x.tolist()
-                # predecir sobre d (no sobre d_fit) con params resultantes
+            if best is not None and best.success:
+                res1 = best
+                ggs_params = res1.x.tolist()
                 y_ggs_pred = GGS_model(d, *ggs_params)
-                y_ggs_pred = np.clip(y_ggs_pred, 0.0, 100.0)
-                FO_ggs = FO_calc_safe(y_ggs_pred, y_exp)
-                st.info(f"⚙️ GGS mejor estrategia: {best_strategy}")
+                FO_ggs = FO_calc(y_ggs_pred, y_exp)
             else:
                 ggs_params = [np.nan, np.nan]
                 FO_ggs = np.inf
-                st.warning("GGS: no se encontró solución válida.")
 
         except Exception as e:
-            st.error(f"GGS: excepción inesperada: {e}")
             ggs_params = [np.nan, np.nan]
             FO_ggs = np.inf
 
-        # -------------------------------------------------
-        # ---------- RRSB (robusto) -----------------------
-        # -------------------------------------------------
+        # ----------- RRSB -----------
         try:
-            def f_rrsb_wrapped(params):
+            def f_rrsb(params):
                 m, l = params
-                if not np.isfinite(m) or not np.isfinite(l):
-                    return 1e6
-                if m <= 0.0 or l <= 0.0:
-                    return 1e6
-                try:
-                    ypred = RRSB_model(d, m, l)
-                except Exception:
-                    return 1e6
+                ypred = RRSB_model(d, m, l)
+                eps2 = ((y_exp - ypred) / y_exp) ** 2
+                return np.sqrt(np.sum(eps2) / (n - 1))
 
-                if np.any(~np.isfinite(ypred)):
-                    return 1e6
-
-                ypred = np.clip(ypred, 0.0, 100.0)
-                denom = np.maximum(y_exp, 1e-12)
-                eps2 = ((y_exp - ypred) / denom) ** 2
-                if np.any(~np.isfinite(eps2)):
-                    return 1e6
-                return np.sqrt(np.sum(eps2) / max(1, eps2.size - 1))
-
-            x0_list_rrsb = [
-                [0.5, np.median(d)],
-                [1.0, np.mean(d)],
-                [0.8, np.max(d) / 2.0],
+            # Lista de inicializaciones
+            x0_list = [
+                [0.5, np.median(d)],     # clásico
+                [1.0, np.mean(d)],       # variación
+                [0.8, np.max(d)/2],      # otra opción
             ]
 
-            best_rrsb = None
-            for x0 in x0_list_rrsb:
-                try:
-                    res = minimize(
-                        f_rrsb_wrapped,
-                        x0,
-                        method='L-BFGS-B',
-                        bounds=[(0.01, 10.0), (1e-6, np.max(d) * 10.0)],
-                        options={'ftol': 1e-12, 'maxiter': 20000}
-                    )
-                except Exception as e:
-                    st.warning(f"RRSB: optimizador falló con init {x0}: {e}")
-                    continue
+            best = None
+            for x0 in x0_list:
+                res = minimize(
+                    f_rrsb,
+                    x0,
+                    method='Powell',
+                    bounds=[(0.01, 10), (1e-6, max(d)*10)],
+                    options={'xtol': 1e-12, 'ftol': 1e-12, 'maxiter': 10000}
+                )
+                if best is None or res.fun < best.fun:
+                    best = res
 
-                if res is None:
-                    continue
-                if best_rrsb is None or res.fun < best_rrsb.fun:
-                    best_rrsb = res
-
-            if best_rrsb is not None and getattr(best_rrsb, "x", None) is not None and best_rrsb.success:
-                rrsb_params = best_rrsb.x.tolist()
-                y_rrsb_pred = RRSB_model(d, *rrsb_params)
-                y_rrsb_pred = np.clip(y_rrsb_pred, 0.0, 100.0)
-                FO_rrsb = FO_calc_safe(y_rrsb_pred, y_exp)
-            else:
-                rrsb_params = [np.nan, np.nan]
-                FO_rrsb = np.inf
-                st.warning("RRSB: no se encontró solución válida.")
+            res2 = best
+            rrsb_params = res2.x.tolist()
+            y_rrsb_pred = RRSB_model(d, *rrsb_params)
+            FO_rrsb = FO_calc(y_rrsb_pred, y_exp)
 
         except Exception as e:
-            st.error(f"RRSB: excepción inesperada: {e}")
-            rrsb_params = [np.nan, np.nan]
             FO_rrsb = np.inf
+            rrsb_params = [np.nan, np.nan]
 
-        # -------------------------------------------------
-        # ---------- Double Weibull (robusto) -------------
-        # -------------------------------------------------
+        # ----------- Double Weibull -----------
         try:
-            def f_double_wrapped(params):
+            def f_double(params):
                 alpha, k1, k2, d80 = params
-                # validaciones básicas
-                if not np.all(np.isfinite(params)):
-                    return 1e6
-                if alpha <= 0 or k1 <= 0 or k2 <= 0 or d80 <= 0:
-                    return 1e6
-                try:
-                    ypred = double_weibull(d, alpha, k1, k2, d80)
-                except Exception:
-                    return 1e6
-                if np.any(~np.isfinite(ypred)):
-                    return 1e6
-                ypred = np.clip(ypred, 0.0, 100.0)
-                denom = np.maximum(y_exp, 1e-12)
-                eps2 = ((y_exp - ypred) / denom) ** 2
-                if np.any(~np.isfinite(eps2)):
-                    return 1e6
-                return np.sqrt(np.sum(eps2) / max(1, eps2.size - 1))
+                ypred = double_weibull(d, alpha, k1, k2, d80)
+                eps2 = ((y_exp - ypred) / y_exp) ** 2
+                return np.sqrt(np.sum(eps2) / (n - 1))
 
-            # estimación inicial d80 segura (interpolación con protecciones)
+            # Estimación inicial de d80 (si falla usamos mediana)
             try:
-                inv = interp1d(df_fit['%F(d)'], df_fit['Tamaño inferior (µm)'], fill_value="extrapolate", bounds_error=False)
+                inv = interp1d(
+                    df_fit['%F(d)'], df_fit['Tamaño inferior (µm)'],
+                    fill_value="extrapolate", bounds_error=False
+                )
                 init_d80 = float(inv(80.0))
                 if init_d80 <= 0 or np.isnan(init_d80):
                     init_d80 = np.median(d)
-            except Exception:
+            except:
                 init_d80 = np.median(d)
 
-            x0_list_dw = [
+            # Lista de inicializaciones
+            x0_list = [
                 [0.5, 0.9, 0.9, init_d80],
                 [0.6, 1.0, 1.0, np.mean(d)],
-                [0.4, 0.8, 0.8, np.max(d) / 2.0],
+                [0.4, 0.8, 0.8, np.max(d)/2],
             ]
 
             bounds_dw = [
-                (1e-3, 1 - 1e-3),  # alpha
-                (0.01, 10.0),      # k1
-                (0.01, 10.0),      # k2
-                (1e-3, np.max(d) * 10.0)  # d80
+                (1e-3, 1-1e-3), # δ0​ usamos (1e-3, 1-1e-3) para evitar que δ0​ sea 0 o 1 y se reduzca a una weibull, si queremos admitir 0 y 1 usamos: (0.0, 1.0)
+                (0.01, 10.0),  # δ1​
+                (0.01, 10.0),  # δ2
+                (1e-3, max(d)*10)  # d80
             ]
 
-            best_dw = None
-            for x0 in x0_list_dw:
-                try:
-                    res = minimize(
-                        f_double_wrapped,
-                        x0,
-                        method='L-BFGS-B',
-                        bounds=bounds_dw,
-                        options={'ftol': 1e-12, 'maxiter': 20000}
-                    )
-                except Exception as e:
-                    st.warning(f"DoubleWeibull: optimizador falló con init {x0}: {e}")
-                    continue
+            best = None
+            for x0 in x0_list:
+                res = minimize(
+                    f_double,
+                    x0,
+                    method='Powell',
+                    bounds=bounds_dw,
+                    options={'xtol': 1e-12, 'ftol': 1e-12, 'maxiter': 20000}
+                )
 
-                if res is None:
-                    continue
-                if best_dw is None or res.fun < best_dw.fun:
-                    best_dw = res
+                if best is None or res.fun < best.fun:
+                    best = res
 
-            if best_dw is not None and getattr(best_dw, "x", None) is not None and best_dw.success:
-                dw_params = best_dw.x.tolist()
-                y_dw_pred = double_weibull(d, *dw_params)
-                y_dw_pred = np.clip(y_dw_pred, 0.0, 100.0)
-                FO_dw = FO_calc_safe(y_dw_pred, y_exp)
-            else:
-                dw_params = [np.nan] * 4
-                FO_dw = np.inf
-                st.warning("Double Weibull: no se encontró solución válida.")
+            res3 = best
+            dw_params = res3.x.tolist()
+            y_dw_pred = double_weibull(d, *dw_params)
+            FO_dw = FO_calc(y_dw_pred, y_exp)
 
         except Exception as e:
-            st.error(f"DoubleWeibull: excepción inesperada: {e}")
-            dw_params = [np.nan] * 4
             FO_dw = np.inf
+            dw_params = [np.nan]*4
 
-        # Guardar resultados
-        st.session_state.models_fit = {
-            'GGS': {'FO': FO_ggs, 'params': ggs_params},
-            'RRSB': {'FO': FO_rrsb, 'params': rrsb_params},
-            'DoubleWeibull': {'FO': FO_dw, 'params': dw_params}
-        }
-
-        st.success("Ajustes completados - revisa mensajes/advertencias arriba para detalles")
-
-    # ----------- Recuperar parámetros desde session_state ---------
-    if not st.session_state.get("models_fit", None):
-        st.warning("Pulsa 'AJUSTAR' para estimar los parámetros de los modelos.")
-        return
-
-    fits = st.session_state.models_fit
-    ggs_params = fits['GGS']['params']
-    rrsb_params = fits['RRSB']['params']
-    dw_params = fits['DoubleWeibull']['params']
-
-    # ------------------- TABLA COMPARATIVA -------------------
-    table_data = []
-    for i in range(len(d)):
-        xi = d[i]; ye = y_exp[i]
-        row = {"Tamaño inferior (µm)": xi, "%F(d)e": ye}
-
-        # GGS
-        if not np.any(np.isnan(ggs_params)):
-            m, dmax = ggs_params
-            try:
-                y_g = float(GGS_model([xi], m, dmax)[0])
-                y_g_clip = float(np.clip(y_g, 0.0, 100.0))
-            except Exception:
-                y_g_clip = np.nan
-            row["%F(d)m_GGS"] = y_g_clip
-            row["ε²_GGS"] = ((ye - y_g_clip) / ye) ** 2 if ye != 0 else np.nan
-        else:
-            row["%F(d)m_GGS"] = np.nan; row["ε²_GGS"] = np.nan
-
-        # RRSB
-        if not np.any(np.isnan(rrsb_params)):
-            m2, l = rrsb_params
-            try:
-                y_r = float(RRSB_model([xi], m2, l)[0])
-                y_r_clip = float(np.clip(y_r, 0.0, 100.0))
-            except Exception:
-                y_r_clip = np.nan
-            row["%F(d)m_RRSB"] = y_r_clip
-            row["ε²_RRSB"] = ((ye - y_r_clip) / ye) ** 2 if ye != 0 else np.nan
-        else:
-            row["%F(d)m_RRSB"] = np.nan; row["ε²_RRSB"] = np.nan
-
-        # Double Weibull
-        if not np.any(np.isnan(dw_params)):
-            try:
-                alpha, k1, k2, d80 = dw_params
-                y_dw = float(double_weibull([xi], alpha, k1, k2, d80)[0])
-                y_dw_clip = float(np.clip(y_dw, 0.0, 100.0))
-            except Exception:
-                y_dw_clip = np.nan
-            row["%F(d)m_DW"] = y_dw_clip
-            row["ε²_DW"] = ((ye - y_dw_clip) / ye) ** 2 if ye != 0 else np.nan
-        else:
-            row["%F(d)m_DW"] = np.nan; row["ε²_DW"] = np.nan
-
-        table_data.append(row)
-
-    df_comp = pd.DataFrame(table_data)
-    st.subheader("Tabla comparativa: Experimental vs Modelos")
-    st.dataframe(
-        df_comp.style.format({
-            "Tamaño inferior (µm)": "{:.2f}",
-            "%F(d)e": "{:.2f}",
-            "%F(d)m_GGS": "{:.2f}",
-            "%F(d)m_RRSB": "{:.2f}",
-            "%F(d)m_DW": "{:.2f}",
-            "ε²_GGS": "{:.2e}",
-            "ε²_RRSB": "{:.2e}",
-            "ε²_DW": "{:.2e}"
-        }),
-        height=320
-    )
         # Guardar resultados en session_state
         st.session_state.models_fit = {
             'GGS': {'FO': FO_ggs, 'params': ggs_params},
@@ -1351,7 +1131,7 @@ def page_5():
     with col3:
         st.subheader("Parámetros Doble Weibull")
         st.table(dw_table.style.format("{:.4f}"))
-
+        
     # ------------------- Gráficos -------------------
     xdata = d; ydata = y_exp
     dd = np.linspace(np.min(xdata), np.max(xdata), 500)
@@ -1565,6 +1345,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
