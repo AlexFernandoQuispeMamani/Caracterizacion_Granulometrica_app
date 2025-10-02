@@ -988,7 +988,7 @@ def page_5():
             ]
 
             bounds_dw = [
-                (1e-3, 5), # δ0​ usamos (1e-3, 1-1e-3) para evitar que δ0​ sea 0 o 1 y se reduzca a una weibull, si queremos admitir 0 y 1 usamos: (0.0, 1.0)
+                (1e-3, 1-1e-3), # δ0​ usamos (1e-3, 1-1e-3) para evitar que δ0​ sea 0 o 1 y se reduzca a una weibull, si queremos admitir 0 y 1 usamos: (0.0, 1.0), sin embargo, valores mayores a 1 no dan ajuste de curva buenos
                 (0.01, 10.0),  # δ1​
                 (0.01, 10.0),  # δ2
                 (1e-3, max(d)*10)  # d80
@@ -1347,6 +1347,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
