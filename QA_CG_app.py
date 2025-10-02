@@ -466,7 +466,7 @@ def page_3():
     else:  # Escala logarítmica (ambos log)
         ax.set_xscale('log')
         ax.set_yscale('log')
-
+    
         # Filtrar valores positivos
         xpos = x_inf.dropna().values
         xpos = xpos[xpos > 0] if len(xpos) > 0 else np.array([])
@@ -481,17 +481,19 @@ def page_3():
             ax.set_ylim(np.min(ypos) * 0.8, np.max(ypos) * 1.2)
 
         # Ejes logarítmicos con ticks limpios
-        from matplotlib.ticker import LogLocator, FormatStrFormatter
-
+        from matplotlib.ticker import LogLocator, NullFormatter, ScalarFormatter
+    
         # Eje X
         ax.xaxis.set_major_locator(LogLocator(base=10.0, subs=None))  # solo potencias de 10
         ax.xaxis.set_minor_locator(LogLocator(base=10.0, subs=np.arange(2, 10)*0.1, numticks=10))
-        ax.xaxis.set_major_formatter(FormatStrFormatter('%.0f'))
+        ax.xaxis.set_major_formatter(ScalarFormatter())  # mostrar solo principales
+        ax.xaxis.set_minor_formatter(NullFormatter())    # no mostrar números en menores
 
         # Eje Y
         ax.yaxis.set_major_locator(LogLocator(base=10.0, subs=None))
         ax.yaxis.set_minor_locator(LogLocator(base=10.0, subs=np.arange(2, 10)*0.1, numticks=10))
-        ax.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
+        ax.yaxis.set_major_formatter(ScalarFormatter())
+        ax.yaxis.set_minor_formatter(NullFormatter())
 
         ax.grid(True, which='both', ls='--', alpha=0.5)
 
@@ -1324,6 +1326,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
