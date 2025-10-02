@@ -882,28 +882,49 @@ def page_5():
             eps2 = ((y_exp - y_model) / y_exp) ** 2  # ε²_i = ((F_exp - F_model)/F_exp)^2
             return np.sqrt(np.sum(eps2) / (n - 1))
 
-        # ----------- GGS (CÓDIGO ANTERIOR SOLICITADO) -----------
+        # ----------- GGS (ROBUSTO Y REFINADO) -----------
         try:
+            # 1. Función objetivo (se mantiene igual, asumiendo que FO_calc maneja n)
             def f_ggs(params):
                 m, dmax = params
                 ypred = GGS_model(d, m, dmax)
                 eps2 = ((y_exp - ypred) / y_exp) ** 2
                 return np.sqrt(np.sum(eps2) / (n - 1))
 
-            # Lista de inicializaciones
-            x0_list = [
-                [0.5, np.max(d)],            # 1. dmax basado en el tamaño máximo de los datos
-                [1.0, np.median(d) * 2],     # 2. dmax basado en la mediana de los datos
-                [0.8, np.percentile(d, 90)], # 3. dmax basado en el percentil 90
-                [1.2, np.max(d) * 1.5],      # 4. dmax un poco por encima del máximo
-            ]
+            # 2. Inicialización Inteligente
+            d_max_exp = np.max(d) 
+    
+            # Intenta obtener el D80 para usarlo como punto de partida clave.
+            try:
+                from scipy.interpolate import interp1d
+                # Creamos una interpolación para estimar D80 y D90, incluso si son extrapolados.
+                inv = interp1d(y_exp, d, fill_value="extrapolate", bounds_error=False)
+                d80_extrap = float(inv(80.0))
+                d90_extrap = float(inv(90.0))
+        
+                # Si la estimación cae fuera de un rango razonable (ej. d < 1), usamos la máxima
+                if d80_extrap < 1 or np.isnan(d80_extrap): d80_extrap = d_max_exp 
+                if d90_extrap < 1 or np.isnan(d90_extrap): d90_extrap = d_max_exp * 1.5 
+            except:
+                d80_extrap = d_max_exp 
+                d90_extrap = d_max_exp * 1.5
 
+            # 3. Lista de inicializaciones robusta: FOCALIZADA EN LA EXTRAPOLACIÓN
+            x0_list = [
+                [0.5, d_max_exp * 1.2],         # 1. Clásico: Extrapolación leve desde el máximo experimental
+                [2.0, d80_extrap * 1.05],       # 2. CLAVE: dmax cerca del D80 Extrapolado (Busca el mínimo de Excel)
+                [3.0, d80_extrap * 0.95],       # 3. CLAVE: m más alto y dmax más bajo (Explora la zona de convergencia inestable)
+                [1.0, d90_extrap],              # 4. dmax cerca del D90 Extrapolado
+                [4.0, d_max_exp * 3.0]          # 5. Exploración de m y dmax muy grandes
+            ]
+    
+            # 4. Optimización (Mantenemos L-BFGS-B por ser eficiente)
             best = None
             for x0 in x0_list:
                 res = minimize(
                     f_ggs,
                     x0,
-                    method='L-BFGS-B',  # Se mantiene L-BFGS-B
+                    method='L-BFGS-B', 
                     bounds=[(0.01, 10), (1e-6, max(d)*10)],
                     options={'ftol': 1e-12, 'gtol': 1e-12, 'maxiter': 10000} 
                 )
@@ -911,6 +932,7 @@ def page_5():
                 if best is None or res.fun < best.fun:
                     best = res
 
+            # 5. Guardar resultados
             if best is not None and best.success:
                 res1 = best
                 ggs_params = res1.x.tolist()
@@ -1348,6 +1370,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
