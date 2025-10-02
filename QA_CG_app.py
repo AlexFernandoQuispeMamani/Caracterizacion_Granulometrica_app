@@ -901,7 +901,7 @@ def page_5():
                 res = minimize(
                     f_ggs,
                     x0,
-                    method='Powell',   # Powell es más parecido al GRG Nonlinear de Excel
+                    method='L-BFGS-B',   
                     bounds=[(0.01, 10), (1e-6, max(d)*10)],
                     options={'xtol': 1e-12, 'ftol': 1e-12, 'maxiter': 10000}
                 )
@@ -942,7 +942,7 @@ def page_5():
                 res = minimize(
                     f_rrsb,
                     x0,
-                    method='Powell',
+                    method='L-BFGS-B',
                     bounds=[(0.01, 10), (1e-6, max(d)*10)],
                     options={'xtol': 1e-12, 'ftol': 1e-12, 'maxiter': 10000}
                 )
@@ -997,7 +997,7 @@ def page_5():
                 res = minimize(
                     f_double,
                     x0,
-                    method='Powell',
+                    method='L-BFGS-B',
                     bounds=bounds_dw,
                     options={'xtol': 1e-12, 'ftol': 1e-12, 'maxiter': 20000}
                 )
@@ -1345,6 +1345,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
