@@ -945,7 +945,7 @@ def page_5():
                     x0,
                     method='L-BFGS-B',
                     bounds=[(0.01, 10), (1e-6, max(d)*10)],
-                    options={'xtol': 1e-12, 'ftol': 1e-12, 'maxiter': 10000}
+                    options={'ftol': 1e-12, 'gtol': 1e-12, 'maxiter': 10000}
                 )
                 if best is None or res.fun < best.fun:
                     best = res
@@ -1000,7 +1000,7 @@ def page_5():
                     x0,
                     method='L-BFGS-B',
                     bounds=bounds_dw,
-                    options={'xtol': 1e-12, 'ftol': 1e-12, 'maxiter': 20000}
+                    options={'ftol': 1e-12, 'gtol': 1e-12, 'maxiter': 20000}
                 )
 
                 if best is None or res.fun < best.fun:
@@ -1346,6 +1346,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
