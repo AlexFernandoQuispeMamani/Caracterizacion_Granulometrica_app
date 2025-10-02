@@ -877,49 +877,35 @@ def page_5():
     if st.button("AJUSTAR"):
         n = len(d)  # número de puntos válidos
 
-        # ----------- GGS (FINAL: TRUST-CONSTR + INICIALIZACIÓN AGRESIVA) -----------
+        # ----------- GGS (CÓDIGO ANTERIOR SOLICITADO) -----------
         try:
-            # 1. Función objetivo (se mantiene)
             def f_ggs(params):
                 m, dmax = params
                 ypred = GGS_model(d, m, dmax)
                 eps2 = ((y_exp - ypred) / y_exp) ** 2
                 return np.sqrt(np.sum(eps2) / (n - 1))
 
-            # 2. Inicialización Inteligente y Agresiva
-            d_max_exp = np.max(d) 
-            from scipy.interpolate import interp1d
-    
-            try:
-                inv = interp1d(y_exp, d, fill_value="extrapolate", bounds_error=False)
-                d80_extrap = float(inv(80.0))
-                if d80_extrap < 1 or np.isnan(d80_extrap): d80_extrap = d_max_exp 
-            except:
-                d80_extrap = d_max_exp 
-
-            # 3. Lista de inicializaciones: Foco en la región D80 (donde Excel gana)
+            # Lista de inicializaciones
             x0_list = [
-                [0.5, d_max_exp * 1.2],           # 1. Clásico: Extrapolación leve
-                [2.0, d80_extrap * 1.05],         # 2. Buscando cerca de la extrapolación D80
-                [3.0, d80_extrap * 0.95],         # 3. M y dmax altos y bajos, respectivamente
-                [4.0, d80_extrap * 0.8]           # 4. M alto, dmax más bajo para forzar la curva
+                [0.5, np.max(d)],            # 1. dmax basado en el tamaño máximo de los datos
+                [1.0, np.median(d) * 2],     # 2. dmax basado en la mediana de los datos
+                [0.8, np.percentile(d, 90)], # 3. dmax basado en el percentil 90
+                [1.2, np.max(d) * 1.5],      # 4. dmax un poco por encima del máximo
             ]
-    
-            # 4. Optimización con TRUST-CONSTR (más robusto contra mínimos locales)
+
             best = None
             for x0 in x0_list:
                 res = minimize(
                     f_ggs,
                     x0,
-                    method='trust-constr',  # <-- ÚLTIMO INTENTO DE ALGORITMO
+                    method='L-BFGS-B',  # Se mantiene L-BFGS-B
                     bounds=[(0.01, 10), (1e-6, max(d)*10)],
-                    options={'gtol': 1e-12, 'xtol': 1e-12, 'maxiter': 20000} # Aumento de maxiter
+                    options={'ftol': 1e-12, 'gtol': 1e-12, 'maxiter': 10000} 
                 )
 
                 if best is None or res.fun < best.fun:
                     best = res
 
-            # 5. Guardar resultados
             if best is not None and best.success:
                 res1 = best
                 ggs_params = res1.x.tolist()
@@ -932,7 +918,7 @@ def page_5():
         except Exception as e:
             ggs_params = [np.nan, np.nan]
             FO_ggs = np.inf
-
+    
         # ----------- RRSB (MODIFICADO) -----------
         try:
             def f_rrsb(params):
@@ -1357,6 +1343,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
