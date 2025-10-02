@@ -390,9 +390,8 @@ def page_3():
     lw = 0.9
     ms = 4
 
-    # --- Graficar según selección (modificaciones solicitadas incluidas) ---
+    # --- Graficar según selección ---
     if grafico == "Histograma de frecuencia":
-        # Graficar usando los intervalos reales (superior - inferior)
         for i in range(len(plot_df)):
             x_left = plot_df['Tamaño inferior (µm)'].iloc[i]
             x_right = plot_df['Tamaño superior (µm)'].iloc[i]
@@ -403,12 +402,10 @@ def page_3():
                 align='edge',
                 color="gray", edgecolor="black", linewidth=0.5, alpha=0.9
             )
-
         ax.set_xlabel("Tamaño (µm)")
         ax.set_ylabel("%Peso")
 
     elif grafico == "Diagrama de simple distribución":
-        # puntos con borde negro y fondo blanco
         ax.scatter(x_inf, y_pct, s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4)
         ax.plot(x_inf, y_pct, color='k', linewidth=lw)
         ax.set_xlabel("Tamaño inferior (µm)")
@@ -435,7 +432,7 @@ def page_3():
         ax.set_ylabel("%")
         ax.legend()
 
-    else:  # Curvas granulométricas (Combinación 2,3,4)
+    else:  # Curvas granulométricas de la muestra
         ax.scatter(x_inf, y_pct, marker='s', s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4, label='%Peso')
         ax.plot(x_inf, y_pct, color='k', linewidth=lw)
         ax.scatter(x_inf, yf, marker='o', s=48, linewidths=0.9, edgecolors='k', facecolors='white', zorder=4, label='%F(d)')
@@ -447,39 +444,39 @@ def page_3():
         ax.legend()
 
     # --- Escalas y límites ---
-    # Por defecto, para escala decimal forzamos inicio en 0 y eje Y 0-100
+    from matplotlib.ticker import MaxNLocator
+
     if escala == "Escala decimal":
         ax.set_xlim(0, np.nanmax(x_inf) * 1.05 if len(x_inf.dropna()) > 0 else 1)
         ax.set_ylim(0, 100)
-        ax.set_yticks(np.arange(0, 101, 10))
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=10))
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=10))
         ax.grid(True, which='both', ls='--', alpha=0.5)
 
     elif escala == "Escala semilogarítmica":
-        # eje X en log: calcular límites positivos y ampliar un poco
         ax.set_xscale('log')
         xpos = x_inf.dropna().values
         xpos = xpos[xpos > 0] if len(xpos) > 0 else np.array([])
         if len(xpos) > 0:
             ax.set_xlim(np.min(xpos) * 0.8, np.max(xpos) * 1.2)
-        # Y sigue en decimal 0-100
-        ax.set_ylim(0.0001, 100)  # para evitar problemas con algunos backends, ponemos un mínimo muy pequeño
-        ax.set_yticks(np.arange(0, 101, 10))
+        ax.set_ylim(0, 100)
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=10))
         ax.grid(True, which='both', ls='--', alpha=0.5)
 
-    else:  # "Escala logarítmica (ambos log)"
+    else:  # Escala logarítmica (ambos log)
         ax.set_xscale('log')
         ax.set_yscale('log')
-        # seleccionar solo valores positivos para límites
         xpos = x_inf.dropna().values
         xpos = xpos[xpos > 0] if len(xpos) > 0 else np.array([])
         y_comb = np.concatenate([y_pct.values, yf.values, yr.values])
         ypos = y_comb[~np.isnan(y_comb)]
         ypos = ypos[ypos > 0] if len(ypos) > 0 else np.array([])
-
         if len(xpos) > 0:
             ax.set_xlim(np.min(xpos) * 0.8, np.max(xpos) * 1.2)
         if len(ypos) > 0:
             ax.set_ylim(np.min(ypos) * 0.8, np.max(ypos) * 1.2)
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=10))
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=10))
         ax.grid(True, which='both', ls='--', alpha=0.5)
 
     ax.set_title(grafico)
@@ -1311,6 +1308,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
