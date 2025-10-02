@@ -877,40 +877,47 @@ def page_5():
     if st.button("AJUSTAR"):
         n = len(d)  # número de puntos válidos
 
-        # ----------- GGS (ROBUSTO CONTRA NaN Y RELAJADO) -----------
+        # ----------- GGS MODIFICADO -----------
         try:
-            def f_ggs(params):
+            def f_ggs(params, strategy="normal"):
                 m, dmax = params
-        
-                # 0. Validación de parámetros de entrada para evitar fallos del modelo
+
+                # 0. Validación de parámetros
                 if m <= 0.01 or dmax <= 1e-6:
-                     return 1e12 # Penalización alta
+                    return 1e12
 
-                ypred = GGS_model(d, m, dmax)
+                # Estrategia de normalización (si los datos no alcanzan 100%)
+                if strategy == "normal":
+                    y_exp_adj = y_exp / np.max(y_exp) * 100
+                else:
+                    y_exp_adj = y_exp.copy()
 
-                # 1. Penalización fuerte si la predicción es NaN/Inf (falla la función GGS_model)
+                # Estrategia de punto ficticio
+                d_fit = d.copy()
+                if strategy == "ficticio":
+                    d_fit = np.append(d_fit, dmax)
+                    y_exp_adj = np.append(y_exp_adj, 100.0)
+
+                ypred = GGS_model(d_fit, m, dmax)
+
                 if np.any(np.isnan(ypred)) or np.any(np.isinf(ypred)):
-                    return 1e12 
-        
-                # 2. Manejo de y_exp = 0 en el error relativo (solo se considera el error relativo si y_exp > 1e-6)
-                # Esto previene la división por cero o por números muy pequeños.
-                mask_valid = y_exp > 1e-6
-                if not np.any(mask_valid): return 1e12 # Falla si todos los puntos son cero
+                    return 1e12
 
-                y_exp_valid = y_exp[mask_valid]
+                mask_valid = y_exp_adj > 1e-6
+                if not np.any(mask_valid):
+                    return 1e12
+
+                y_exp_valid = y_exp_adj[mask_valid]
                 ypred_valid = ypred[mask_valid]
-        
-                # Cálculo del error relativo (ε²) solo para puntos válidos
+
                 eps2 = ((y_exp_valid - ypred_valid) / y_exp_valid) ** 2
-        
-                # 3. Penalización si el error calculado es NaN/Inf
                 if np.any(np.isinf(eps2)) or np.any(np.isnan(eps2)):
                     return 1e12
-            
+
                 df = max(1, len(y_exp_valid) - 1)
                 return np.sqrt(np.sum(eps2) / df)
 
-            # Lista de inicializaciones (se mantiene la anterior)
+            # Lista de inicializaciones
             x0_list = [
                 [0.5, np.max(d)],
                 [1.0, np.median(d) * 2],
@@ -918,30 +925,40 @@ def page_5():
                 [1.2, np.max(d) * 1.5],
             ]
 
-            best = None
-            for x0 in x0_list:
-                res = minimize(
-                    f_ggs,
-                    x0,
-                    method='L-BFGS-B',
-                    bounds=[(0.01, 10), (1e-6, max(d)*10)],
-                    # 4. Tolerancias relajadas para garantizar convergencia
-                    options={'ftol': 1e-8, 'gtol': 1e-8, 'maxiter': 10000} 
-                )
+            # Estrategias disponibles: "normal", "ficticio", "restriccion"
+            strategies = ["normal", "ficticio", "restriccion"]
 
-                if best is None or res.fun < best.fun:
-                    best = res
+            best = None
+            best_strategy = None
+            for strat in strategies:
+                for x0 in x0_list:
+                    bounds = [(0.01, 10), (1e-6, max(d)*10)]
+                    if strat == "restriccion":
+                        # fuerza a que dmax esté entre max(d) y 1.5*max(d)
+                        bounds = [(0.01, 10), (np.max(d), np.max(d)*1.5)]
+
+                    res = minimize(
+                        f_ggs,
+                        x0,
+                        args=(strat,),
+                        method='L-BFGS-B',
+                        bounds=bounds,
+                        options={'ftol': 1e-9, 'maxiter': 20000}
+                    )    
+
+                    if best is None or res.fun < best.fun:
+                        best = res
+                        best_strategy = strat
 
             if best is not None and best.success:
                 res1 = best
                 ggs_params = res1.x.tolist()
                 y_ggs_pred = GGS_model(d, *ggs_params)
                 FO_ggs = FO_calc(y_ggs_pred, y_exp)
+                st.info(f"⚙️ Mejor estrategia usada en GGS: {best_strategy}")
             else:
-                # Si la optimización falla (success=False), devolvemos inf/nan pero con la F.O. más baja
                 FO_ggs = best.fun if best is not None else np.inf
                 ggs_params = best.x.tolist() if best is not None else [np.nan, np.nan]
-                # Si best.x contiene NaN, lo filtramos después
 
         except Exception as e:
             ggs_params = [np.nan, np.nan]
@@ -1371,6 +1388,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
