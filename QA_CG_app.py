@@ -904,7 +904,7 @@ def page_5():
                     x0,
                     method='L-BFGS-B',
                     # 🔹 dmax restringido a max(d)
-                    bounds=[(0.01, 10), (1e-6, np.max(d))],
+                    bounds=[(0.01, 10), (1e-6, np.max(d)*10)],
                     options={'ftol': 1e-12, 'maxiter': 10000}
                 )
                 if best is None or res.fun < best.fun:
@@ -1347,6 +1347,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
