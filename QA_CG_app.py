@@ -903,7 +903,7 @@ def page_5():
                 res = minimize(
                     f_ggs,
                     x0,
-                    method='L-BFGS-B',  # <-- CAMBIO A L-BFGS-B
+                    method='TNC',  # <-- CAMBIO A L-BFGS-B
                     bounds=[(0.01, 10), (1e-6, max(d)*10)],
                     options={'ftol': 1e-12, 'gtol': 1e-12, 'maxiter': 10000} # <-- USO DE gtol
                 )
@@ -1348,6 +1348,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
