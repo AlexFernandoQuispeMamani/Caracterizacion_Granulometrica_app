@@ -882,7 +882,7 @@ def page_5():
             eps2 = ((y_exp - y_model) / y_exp) ** 2  # ε²_i = ((F_exp - F_model)/F_exp)^2
             return np.sqrt(np.sum(eps2) / (n - 1))
 
-        # ----------- GGS -----------
+        # ----------- GGS (MODIFICADO) -----------
         try:
             def f_ggs(params):
                 m, dmax = params
@@ -901,9 +901,9 @@ def page_5():
                 res = minimize(
                     f_ggs,
                     x0,
-                    method='Powell',   # Powell es más parecido al GRG Nonlinear de Excel
+                    method='L-BFGS-B',  # <-- CAMBIO A L-BFGS-B
                     bounds=[(0.01, 10), (1e-6, max(d)*10)],
-                    options={'xtol': 1e-12, 'ftol': 1e-12, 'maxiter': 10000}
+                    options={'ftol': 1e-12, 'gtol': 1e-12, 'maxiter': 10000} # <-- USO DE gtol
                 )
 
                 if best is None or res.fun < best.fun:
@@ -922,7 +922,7 @@ def page_5():
             ggs_params = [np.nan, np.nan]
             FO_ggs = np.inf
 
-        # ----------- RRSB -----------
+        # ----------- RRSB (MODIFICADO) -----------
         try:
             def f_rrsb(params):
                 m, l = params
@@ -932,9 +932,9 @@ def page_5():
 
             # Lista de inicializaciones
             x0_list = [
-                [0.5, np.median(d)],     # clásico
-                [1.0, np.mean(d)],       # variación
-                [0.8, np.max(d)/2],      # otra opción
+                [0.5, np.median(d)],    # clásico
+                [1.0, np.mean(d)],      # variación
+                [0.8, np.max(d)/2],     # otra opción
             ]
 
             best = None
@@ -942,9 +942,9 @@ def page_5():
                 res = minimize(
                     f_rrsb,
                     x0,
-                    method='Powell',
+                    method='L-BFGS-B', # <-- CAMBIO A L-BFGS-B
                     bounds=[(0.01, 10), (1e-6, max(d)*10)],
-                    options={'xtol': 1e-12, 'ftol': 1e-12, 'maxiter': 10000}
+                    options={'ftol': 1e-12, 'gtol': 1e-12, 'maxiter': 10000} # <-- USO DE gtol
                 )
                 if best is None or res.fun < best.fun:
                     best = res
@@ -958,7 +958,7 @@ def page_5():
             FO_rrsb = np.inf
             rrsb_params = [np.nan, np.nan]
 
-        # ----------- Double Weibull -----------
+        # ----------- Double Weibull (MODIFICADO) -----------
         try:
             def f_double(params):
                 alpha, k1, k2, d80 = params
@@ -966,7 +966,8 @@ def page_5():
                 eps2 = ((y_exp - ypred) / y_exp) ** 2
                 return np.sqrt(np.sum(eps2) / (n - 1))
 
-            # Estimación inicial de d80 (si falla usamos mediana)
+            # Estimación inicial de d80 (se mantiene)
+            # ... (código de estimación inicial de d80)
             try:
                 inv = interp1d(
                     df_fit['%F(d)'], df_fit['Tamaño inferior (µm)'],
@@ -977,7 +978,7 @@ def page_5():
                     init_d80 = np.median(d)
             except:
                 init_d80 = np.median(d)
-
+        
             # Lista de inicializaciones
             x0_list = [
                 [0.5, 0.9, 0.9, init_d80],
@@ -986,10 +987,10 @@ def page_5():
             ]
 
             bounds_dw = [
-                (1e-3, 1-1e-3), # δ0​ usamos (1e-3, 1-1e-3) para evitar que δ0​ sea 0 o 1 y se reduzca a una weibull, si queremos admitir 0 y 1 usamos: (0.0, 1.0)
-                (0.01, 10.0),  # δ1​
-                (0.01, 10.0),  # δ2
-                (1e-3, max(d)*10)  # d80
+                (1e-3, 1-1e-3), # δ0​
+                (0.01, 10.0),   # δ1​
+                (0.01, 10.0),   # δ2
+                (1e-3, max(d)*10) # d80
             ]
 
             best = None
@@ -997,9 +998,9 @@ def page_5():
                 res = minimize(
                     f_double,
                     x0,
-                    method='Powell',
+                    method='L-BFGS-B', # <-- CAMBIO A L-BFGS-B
                     bounds=bounds_dw,
-                    options={'xtol': 1e-12, 'ftol': 1e-12, 'maxiter': 20000}
+                    options={'ftol': 1e-12, 'gtol': 1e-12, 'maxiter': 20000} # <-- USO DE gtol
                 )
 
                 if best is None or res.fun < best.fun:
@@ -1013,7 +1014,7 @@ def page_5():
         except Exception as e:
             FO_dw = np.inf
             dw_params = [np.nan]*4
-
+        
         # Guardar resultados en session_state
         st.session_state.models_fit = {
             'GGS': {'FO': FO_ggs, 'params': ggs_params},
@@ -1345,6 +1346,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
