@@ -882,58 +882,28 @@ def page_5():
             eps2 = ((y_exp - y_model) / y_exp) ** 2  # ε²_i = ((F_exp - F_model)/F_exp)^2
             return np.sqrt(np.sum(eps2) / (n - 1))
 
-        # ----------- GGS (ROBUSTO) -----------
+        # ----------- GGS (CÓDIGO ANTERIOR SOLICITADO) -----------
         try:
-    # 1. Función objetivo
             def f_ggs(params):
                 m, dmax = params
                 ypred = GGS_model(d, m, dmax)
-                # Asegurarse de que y_exp no sea cero para evitar división por cero en eps2
-                non_zero_exp = y_exp != 0
-                if not np.any(non_zero_exp): return np.inf
-        
-                eps2 = ((y_exp[non_zero_exp] - ypred[non_zero_exp]) / y_exp[non_zero_exp]) ** 2
-            
-                # El denominador debe ser n_valid (puntos válidos) - 1, o n_valid (puntos válidos) - 2 (por los 2 parámetros),
-                # pero para mantener tu definición de FO_calc, usamos (n-1) si la FO_calc general ya está definida.
-                # Si la definimos aquí, usamos len(y_exp[non_zero_exp]) - 1 si n>1, o 1 si n=1.
-                df = max(1, len(y_exp[non_zero_exp]) - 1)
-                return np.sqrt(np.sum(eps2) / df)
+                eps2 = ((y_exp - ypred) / y_exp) ** 2
+                return np.sqrt(np.sum(eps2) / (n - 1))
 
-            # 2. Inicialización Inteligente
-            d_max_exp = np.max(d) 
-    
-            # Intentar obtener D80 y D50
-            try:
-                from scipy.interpolate import interp1d
-                inv = interp1d(y_exp, d, fill_value="extrapolate", bounds_error=False)
-                d80_exp = float(inv(80.0))
-                d50_exp = float(inv(50.0))
-                # Limpieza: si la extrapolación es mala, volvemos a valores seguros.
-                if d80_exp <= 0 or np.isnan(d80_exp): d80_exp = d_max_exp 
-                if d50_exp <= 0 or np.isnan(d50_exp): d50_exp = np.median(d)
-            except:
-                d80_exp = d_max_exp 
-                d50_exp = np.median(d)
-
-            # 3. Lista de inicializaciones robusta
-            # Exploramos m de pequeño a grande, y dmax de pequeño (cerca de D50/D80) a grande (cerca de d_max_exp)
+            # Lista de inicializaciones
             x0_list = [
-                [0.5, d_max_exp],           # m pequeño, dmax en el máximo
-                [1.5, d80_exp * 1.5],       # m mediano, dmax por encima de D80
-                [2.5, d80_exp * 0.9],       # m alto, dmax ligeramente debajo de D80 (¡Clave para el caso 220!)
-                [3.0, d_max_exp * 2.0],     # m alto, dmax muy por encima del máximo
-                [1.0, d50_exp * 2.0],       # m mediano, dmax cerca de D50
-                [4.0, d50_exp * 0.5]        # m muy alto, dmax pequeño (exploración de curva fina)
+                [0.5, np.max(d)],            # 1. dmax basado en el tamaño máximo de los datos
+                [1.0, np.median(d) * 2],     # 2. dmax basado en la mediana de los datos
+                [0.8, np.percentile(d, 90)], # 3. dmax basado en el percentil 90
+                [1.2, np.max(d) * 1.5],      # 4. dmax un poco por encima del máximo
             ]
-    
-            # 4. Optimización
+
             best = None
             for x0 in x0_list:
                 res = minimize(
                     f_ggs,
                     x0,
-                    method='L-BFGS-B',  # Mantenemos L-BFGS-B como método robusto
+                    method='L-BFGS-B',  # Se mantiene L-BFGS-B
                     bounds=[(0.01, 10), (1e-6, max(d)*10)],
                     options={'ftol': 1e-12, 'gtol': 1e-12, 'maxiter': 10000} 
                 )
@@ -941,7 +911,6 @@ def page_5():
                 if best is None or res.fun < best.fun:
                     best = res
 
-            # 5. Guardar resultados
             if best is not None and best.success:
                 res1 = best
                 ggs_params = res1.x.tolist()
@@ -952,7 +921,6 @@ def page_5():
                 FO_ggs = np.inf
 
         except Exception as e:
-            # print(f"Error GGS: {e}") # Descomentar para debug
             ggs_params = [np.nan, np.nan]
             FO_ggs = np.inf
 
@@ -1380,6 +1348,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
