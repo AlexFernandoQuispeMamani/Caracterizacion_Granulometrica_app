@@ -882,38 +882,100 @@ def page_5():
             eps2 = ((y_exp - y_model) / y_exp) ** 2  # ε²_i = ((F_exp - F_model)/F_exp)^2
             return np.sqrt(np.sum(eps2) / (n - 1))
 
-        # ----------- GGS -----------
-        try:
-            def f_ggs(params):
-                m, dmax = params
-                ypred = GGS_model(d, m, dmax)
-                eps2 = ((y_exp - ypred) / y_exp) ** 2
-                return np.sqrt(np.sum(eps2) / (n - 1))
+        # ----------- GGS (mejorado) -----------
+        from scipy.optimize import least_squares
 
-            # Lista de inicializaciones
+        try:
+            # FO_calc ya definido arriba (usa la misma que tú)
+            def ggs_func(params, d):
+                m, dmax = params
+                return GGS_model(d, m, dmax)  # devuelve %F(d) en escala 0-100
+
+            # 1) Estimación inicial por regresión log-log (para puntos con %F>0)
+            mask_pos = (y_exp > 0) & (d > 0)
+            if mask_pos.sum() >= 2:
+                xd = np.log(d[mask_pos])
+                yd = np.log(y_exp[mask_pos] / 100.0)  # ln(F/100)
+                # regresión lineal simple: yd = m * xd + b  where b = -m ln(dmax)
+                A = np.vstack([xd, np.ones_like(xd)]).T
+                coef, *_ = np.linalg.lstsq(A, yd, rcond=None)
+                m_init = float(coef[0])
+                b_init = float(coef[1])
+                # obtener dmax desde b = -m ln(dmax) -> dmax = exp(-b/m)
+                if m_init != 0:
+                    try:
+                        dmax_init = float(np.exp(-b_init / m_init))
+                    except:
+                        dmax_init = float(np.max(d))
+                else:
+                    dmax_init = float(np.max(d))
+                # protecciones
+                if not np.isfinite(m_init) or m_init <= 0:
+                    m_init = 1.0
+                if not np.isfinite(dmax_init) or dmax_init <= 0:
+                    dmax_init = float(np.max(d))
+            else:
+                # fallback
+                m_init = 1.0
+                dmax_init = float(np.max(d))
+
+            # 2) Preparar múltiples inicializaciones (incluye la que Excel te dio si la conoces)
             x0_list = [
-                [0.5, np.max(d)],       # como Excel
-                [1.0, np.median(d)*2],  # otra opción
+                [m_init, dmax_init],
+                [0.5, np.max(d)], 
+                [1.0, np.median(d)*2],
+                [3.2, 220.0],  # ejemplo: la solución que Excel te dio (si la conoces)
             ]
 
-            best = None
+            # bounds: por defecto limitar dmax a max(d) (como Excel). Cambia si quieres permitir > max(d)
+            lb = [0.01, 1e-6]
+            ub = [10.0, np.max(d)]  # <= max(d). Si quieres permitir un poco más: use np.max(d)*1.05
+            bounds = (lb, ub)
+
+            best_res = None
             for x0 in x0_list:
-                res = minimize(
-                    f_ggs,
-                    x0,
-                    method='L-BFGS-B',   
-                    bounds=[(0.01, 10), (1e-6, max(d)*10)],
-                    options={'xtol': 1e-12, 'ftol': 1e-12, 'maxiter': 10000}
-                )
+                # usar least_squares con loss robusta y escalado
+                def residuals(params):
+                    ypred = ggs_func(params, d)
+                    # residuo relativo (mismo tipo de error que usas en FO)
+                    # evita dividir por cero: usa y_exp where >0; para y_exp==0, poner residuo 0 o pequeño
+                    r = np.zeros_like(y_exp, dtype=float)
+                    mask = (y_exp != 0)
+                    r[mask] = (y_exp[mask] - ypred[mask]) / y_exp[mask]
+                    # penalización suave si dmax se acerca al límite superior (evitar dmax enorme)
+                    dmax_pen = 0.0
+                    if params[1] > np.max(d):
+                        dmax_pen = 1.0 * ( (params[1] / np.max(d)) - 1.0 )
+                    # concatenar penalización como residuo adicional
+                    return np.concatenate([r, np.array([dmax_pen])])
 
-                if best is None or res.fun < best.fun:
-                    best = res
+                try:
+                    res_lsq = least_squares(
+                        residuals,
+                        x0,
+                        bounds=bounds,
+                        ftol=1e-12,
+                        xtol=1e-12,
+                        gtol=1e-12,
+                        max_nfev=20000,
+                        loss='soft_l1',  # robusta frente a outliers
+                        verbose=0
+                    )
+                    # calcular FO con la solución
+                    params_opt = res_lsq.x
+                    y_pred_opt = GGS_model(d, params_opt[0], params_opt[1])
+                    FO_opt = FO_calc(y_pred_opt, y_exp)
+                    # escoger mejor por FO
+                    if best_res is None or FO_opt < best_res['FO']:
+                        best_res = {'res': res_lsq, 'FO': FO_opt, 'params': params_opt}
+                except Exception as e:
+                    # ignorar fallos de una inicialización
+                    pass
 
-            if best is not None and best.success:
-                res1 = best
-                ggs_params = res1.x.tolist()
+            if best_res is not None:
+                ggs_params = best_res['params'].tolist()
                 y_ggs_pred = GGS_model(d, *ggs_params)
-                FO_ggs = FO_calc(y_ggs_pred, y_exp)
+                FO_ggs = best_res['FO']
             else:
                 ggs_params = [np.nan, np.nan]
                 FO_ggs = np.inf
@@ -921,7 +983,7 @@ def page_5():
         except Exception as e:
             ggs_params = [np.nan, np.nan]
             FO_ggs = np.inf
-
+       
         # ----------- RRSB -----------
         try:
             def f_rrsb(params):
@@ -1345,6 +1407,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
