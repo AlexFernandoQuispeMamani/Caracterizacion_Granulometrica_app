@@ -983,7 +983,7 @@ def page_5():
         
             # Lista de inicializaciones
             x0_list = [
-                [0.5, 3.0, 1.0, init_d80],
+                [0.5, 0.9, 0.9, init_d80],
                 [0.6, 1.0, 1.0, np.mean(d)],
                 [0.4, 0.8, 0.8, np.max(d)/2],
             ]
@@ -1348,6 +1348,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
