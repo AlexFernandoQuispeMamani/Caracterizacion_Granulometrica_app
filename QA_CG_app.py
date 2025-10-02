@@ -877,20 +877,45 @@ def page_5():
     if st.button("AJUSTAR"):
         n = len(d)  # número de puntos válidos
 
-        # ----------- GGS (CÓDIGO ANTERIOR SOLICITADO) -----------
+        # ----------- GGS (ROBUSTO CONTRA NaN Y RELAJADO) -----------
         try:
             def f_ggs(params):
                 m, dmax = params
-                ypred = GGS_model(d, m, dmax)
-                eps2 = ((y_exp - ypred) / y_exp) ** 2
-                return np.sqrt(np.sum(eps2) / (n - 1))
+        
+                # 0. Validación de parámetros de entrada para evitar fallos del modelo
+                if m <= 0.01 or dmax <= 1e-6:
+                     return 1e12 # Penalización alta
 
-            # Lista de inicializaciones
+                ypred = GGS_model(d, m, dmax)
+
+                # 1. Penalización fuerte si la predicción es NaN/Inf (falla la función GGS_model)
+                if np.any(np.isnan(ypred)) or np.any(np.isinf(ypred)):
+                    return 1e12 
+        
+                # 2. Manejo de y_exp = 0 en el error relativo (solo se considera el error relativo si y_exp > 1e-6)
+                # Esto previene la división por cero o por números muy pequeños.
+                mask_valid = y_exp > 1e-6
+                if not np.any(mask_valid): return 1e12 # Falla si todos los puntos son cero
+
+                y_exp_valid = y_exp[mask_valid]
+                ypred_valid = ypred[mask_valid]
+        
+                # Cálculo del error relativo (ε²) solo para puntos válidos
+                eps2 = ((y_exp_valid - ypred_valid) / y_exp_valid) ** 2
+        
+                # 3. Penalización si el error calculado es NaN/Inf
+                if np.any(np.isinf(eps2)) or np.any(np.isnan(eps2)):
+                    return 1e12
+            
+                df = max(1, len(y_exp_valid) - 1)
+                return np.sqrt(np.sum(eps2) / df)
+
+            # Lista de inicializaciones (se mantiene la anterior)
             x0_list = [
-                [0.5, np.max(d)],            # 1. dmax basado en el tamaño máximo de los datos
-                [1.0, np.median(d) * 2],     # 2. dmax basado en la mediana de los datos
-                [0.8, np.percentile(d, 90)], # 3. dmax basado en el percentil 90
-                [1.2, np.max(d) * 1.5],      # 4. dmax un poco por encima del máximo
+                [0.5, np.max(d)],
+                [1.0, np.median(d) * 2],
+                [0.8, np.percentile(d, 90)],
+                [1.2, np.max(d) * 1.5],
             ]
 
             best = None
@@ -898,9 +923,10 @@ def page_5():
                 res = minimize(
                     f_ggs,
                     x0,
-                    method='L-BFGS-B',  # Se mantiene L-BFGS-B
+                    method='L-BFGS-B',
                     bounds=[(0.01, 10), (1e-6, max(d)*10)],
-                    options={'ftol': 1e-12, 'gtol': 1e-12, 'maxiter': 10000} 
+                    # 4. Tolerancias relajadas para garantizar convergencia
+                    options={'ftol': 1e-8, 'gtol': 1e-8, 'maxiter': 10000} 
                 )
 
                 if best is None or res.fun < best.fun:
@@ -912,8 +938,10 @@ def page_5():
                 y_ggs_pred = GGS_model(d, *ggs_params)
                 FO_ggs = FO_calc(y_ggs_pred, y_exp)
             else:
-                ggs_params = [np.nan, np.nan]
-                FO_ggs = np.inf
+                # Si la optimización falla (success=False), devolvemos inf/nan pero con la F.O. más baja
+                FO_ggs = best.fun if best is not None else np.inf
+                ggs_params = best.x.tolist() if best is not None else [np.nan, np.nan]
+                # Si best.x contiene NaN, lo filtramos después
 
         except Exception as e:
             ggs_params = [np.nan, np.nan]
@@ -1343,6 +1371,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
