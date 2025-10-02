@@ -466,17 +466,21 @@ def page_3():
     else:  # Escala logarítmica (ambos log)
         ax.set_xscale('log')
         ax.set_yscale('log')
+
         xpos = x_inf.dropna().values
         xpos = xpos[xpos > 0] if len(xpos) > 0 else np.array([])
         y_comb = np.concatenate([y_pct.values, yf.values, yr.values])
         ypos = y_comb[~np.isnan(y_comb)]
         ypos = ypos[ypos > 0] if len(ypos) > 0 else np.array([])
+
         if len(xpos) > 0:
             ax.set_xlim(np.min(xpos) * 0.8, np.max(xpos) * 1.2)
         if len(ypos) > 0:
             ax.set_ylim(np.min(ypos) * 0.8, np.max(ypos) * 1.2)
-        ax.xaxis.set_major_locator(MaxNLocator(nbins=10))
-        ax.yaxis.set_major_locator(MaxNLocator(nbins=10))
+
+        ax.xaxis.set_major_locator(LogLocator(base=10.0, numticks=10))  
+        ax.yaxis.set_major_locator(LogLocator(base=10.0, numticks=10))
+
         ax.grid(True, which='both', ls='--', alpha=0.5)
 
     ax.set_title(grafico)
@@ -1308,6 +1312,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
