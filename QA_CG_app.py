@@ -467,19 +467,31 @@ def page_3():
         ax.set_xscale('log')
         ax.set_yscale('log')
 
+        # Filtrar valores positivos
         xpos = x_inf.dropna().values
         xpos = xpos[xpos > 0] if len(xpos) > 0 else np.array([])
         y_comb = np.concatenate([y_pct.values, yf.values, yr.values])
         ypos = y_comb[~np.isnan(y_comb)]
         ypos = ypos[ypos > 0] if len(ypos) > 0 else np.array([])
 
+        # Limites
         if len(xpos) > 0:
             ax.set_xlim(np.min(xpos) * 0.8, np.max(xpos) * 1.2)
         if len(ypos) > 0:
             ax.set_ylim(np.min(ypos) * 0.8, np.max(ypos) * 1.2)
 
-        ax.xaxis.set_major_locator(LogLocator(base=10.0, numticks=10))  
-        ax.yaxis.set_major_locator(LogLocator(base=10.0, numticks=10))
+        # Ejes logarítmicos con ticks limpios
+        from matplotlib.ticker import LogLocator, FormatStrFormatter
+
+        # Eje X
+        ax.xaxis.set_major_locator(LogLocator(base=10.0, subs=None))  # solo potencias de 10
+        ax.xaxis.set_minor_locator(LogLocator(base=10.0, subs=np.arange(2, 10)*0.1, numticks=10))
+        ax.xaxis.set_major_formatter(FormatStrFormatter('%.0f'))
+
+        # Eje Y
+        ax.yaxis.set_major_locator(LogLocator(base=10.0, subs=None))
+        ax.yaxis.set_minor_locator(LogLocator(base=10.0, subs=np.arange(2, 10)*0.1, numticks=10))
+        ax.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
 
         ax.grid(True, which='both', ls='--', alpha=0.5)
 
@@ -1312,6 +1324,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
