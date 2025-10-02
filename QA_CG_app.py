@@ -392,19 +392,19 @@ def page_3():
 
     # --- Graficar según selección (modificaciones solicitadas incluidas) ---
     if grafico == "Histograma de frecuencia":
-        # width: evitar nan en x_avg
-        xa_vals = x_avg.values if hasattr(x_avg, "values") else np.array(x_avg)
-        xa_valid = xa_vals[~np.isnan(xa_vals)]
-        width = (np.nanmax(xa_valid) / len(xa_valid) if len(xa_valid) > 0 else 1)
+        # Graficar usando los intervalos reales (superior - inferior)
+        for i in range(len(plot_df)):
+            x_left = plot_df['Tamaño inferior (µm)'].iloc[i]
+            x_right = plot_df['Tamaño superior (µm)'].iloc[i]
+            height = plot_df['%Peso'].iloc[i]
+            ax.bar(
+                x_left, height,
+                width=(x_right - x_left),
+                align='edge',
+                color="gray", edgecolor="black", linewidth=0.5, alpha=0.9
+            )
 
-        # Relleno de puntos con hatch '.' (puntos)
-        ax.bar(
-            x_avg, y_pct,
-            width=(np.nanmax(x_avg)/len(x_avg) if len(x_avg) > 0 else 1),
-            color="gray", edgecolor="black", linewidth=0.5, alpha=0.9
-        )
-
-        ax.set_xlabel("Tamaño promedio (µm)")
+        ax.set_xlabel("Tamaño (µm)")
         ax.set_ylabel("%Peso")
 
     elif grafico == "Diagrama de simple distribución":
@@ -1311,6 +1311,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
