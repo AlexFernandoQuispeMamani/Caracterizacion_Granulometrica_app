@@ -892,9 +892,11 @@ def page_5():
 
             # Lista de inicializaciones
             x0_list = [
-                [0.5, np.max(d)],       # como Excel
-                [1.0, np.median(d)*2],  # otra opción
-            ]
+                [0.5, np.max(d)],           # 1. dmax basado en el tamaño máximo de los datos
+                [1.0, np.median(d) * 2],    # 2. dmax basado en la mediana de los datos (tu sugerencia)
+                [0.8, np.percentile(d, 90)],# 3. dmax basado en el percentil 90
+                [1.2, np.max(d) * 1.5],     # 4. dmax un poco por encima del máximo
+            ]        
 
             best = None
             for x0 in x0_list:
@@ -1346,6 +1348,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
