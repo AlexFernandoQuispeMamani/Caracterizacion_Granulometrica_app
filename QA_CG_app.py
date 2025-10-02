@@ -466,35 +466,54 @@ def page_3():
     else:  # Escala logarítmica (ambos log)
         ax.set_xscale('log')
         ax.set_yscale('log')
-    
+
         # Filtrar valores positivos
+        # ... (código de filtrado de xpos y ypos se mantiene igual)
         xpos = x_inf.dropna().values
         xpos = xpos[xpos > 0] if len(xpos) > 0 else np.array([])
         y_comb = np.concatenate([y_pct.values, yf.values, yr.values])
         ypos = y_comb[~np.isnan(y_comb)]
         ypos = ypos[ypos > 0] if len(ypos) > 0 else np.array([])
+        # ...
 
-        # Limites
+        # Limites (ajustar un poco los límites para evitar que los puntos toquen el borde)
         if len(xpos) > 0:
-            ax.set_xlim(np.min(xpos) * 0.8, np.max(xpos) * 1.2)
+            # Ampliamos los límites en X un poco más
+            ax.set_xlim(np.min(xpos) * 0.5, np.max(xpos) * 2.0)
         if len(ypos) > 0:
-            ax.set_ylim(np.min(ypos) * 0.8, np.max(ypos) * 1.2)
+            # Aumentamos el límite inferior de Y para dar más espacio a los valores pequeños
+            min_y = np.min(ypos)
+            # Aseguramos un límite inferior limpio, por ejemplo, 1 si el mínimo es menor, o 0.5 veces el mínimo
+            y_lim_min = 1.0 if min_y < 1.0 else min_y * 0.5
+            ax.set_ylim(y_lim_min, np.max(ypos) * 1.5)
 
-        # Ejes logarítmicos con ticks limpios
-        from matplotlib.ticker import LogLocator, NullFormatter, ScalarFormatter
+        # Ejes logarítmicos con ticks limpios y menor densidad de etiquetas
+        from matplotlib.ticker import LogLocator, NullFormatter, ScalarFormatter, FormatStrFormatter
+
+        # === Eje X (Tamaño inferior) ===
+        # Usar el LogLocator por defecto (que ya maneja potencias de 10)
+        # y establecer el formateador a 'ScalarFormatter' para las etiquetas principales.
+        ax.xaxis.set_major_locator(LogLocator(base=10.0, numticks=10)) 
+        ax.xaxis.set_minor_locator(LogLocator(base=10.0, subs=np.arange(2, 10)*0.1)) # Ticks menores entre potencias
     
-        # Eje X
-        ax.xaxis.set_major_locator(LogLocator(base=10.0, subs=None))  # solo potencias de 10
-        ax.xaxis.set_minor_locator(LogLocator(base=10.0, subs=np.arange(2, 10)*0.1, numticks=10))
-        ax.xaxis.set_major_formatter(ScalarFormatter())  # mostrar solo principales
-        ax.xaxis.set_minor_formatter(NullFormatter())    # no mostrar números en menores
+        # Formateador simple: Mostrar etiquetas solo para los ticks principales
+        ax.xaxis.set_major_formatter(ScalarFormatter()) 
+        ax.xaxis.set_minor_formatter(NullFormatter())  # No mostrar números en ticks menores
 
-        # Eje Y
-        ax.yaxis.set_major_locator(LogLocator(base=10.0, subs=None))
-        ax.yaxis.set_minor_locator(LogLocator(base=10.0, subs=np.arange(2, 10)*0.1, numticks=10))
-        ax.yaxis.set_major_formatter(ScalarFormatter())
+        # === Eje Y (%) ===
+        # Similar al eje X: Ticks principales y menores, solo etiquetas en los principales
+        ax.yaxis.set_major_locator(LogLocator(base=10.0, numticks=10))
+        ax.yaxis.set_minor_locator(LogLocator(base=10.0, subs=np.arange(2, 10)*0.1))
+    
+        # Usar FormatStrFormatter para forzar etiquetas con números enteros o con un formato específico
+        # Esto puede evitar notación científica y hacerlos más legibles.
+        ax.yaxis.set_major_formatter(FormatStrFormatter('%d'))
         ax.yaxis.set_minor_formatter(NullFormatter())
 
+        # Rotar las etiquetas del eje X si fuese necesario (solo si hay superposición)
+        # plt.gcf().autofmt_xdate()
+
+        # Grid
         ax.grid(True, which='both', ls='--', alpha=0.5)
 
     ax.set_title(grafico)
@@ -1326,6 +1345,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
