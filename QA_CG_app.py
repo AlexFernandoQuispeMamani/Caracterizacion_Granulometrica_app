@@ -212,8 +212,16 @@ def compute_analysis(df_in, mode):
 
 # ---------- PÁGINA 1: Bienvenida ----------
 def page_1():
-    st.title("CARACTERIZACIÓN GRANULOMÉTRICA")
-    st.markdown(f"**Desarrollado por:** Alex Fernando Quispe Mamani — Ingeniero Metalúrgico (UTO).")
+    st.markdown(
+        "<h1 style='text-align: center;'>CARACTERIZACIÓN GRANULOMÉTRICA</h1>", 
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        "<p style='text-align: center;'><b>Desarrollado por:</b> Alex Fernando Quispe Mamani — Ingeniero Metalúrgico (UTO)</p>", 
+        unsafe_allow_html=True
+    )
+
     st.markdown("""
     Este programa realiza un análisis granulométrico completo a partir de pesos retenidos por tamiz o
     tamaños ingresados manualmente. Genera tablas, gráficos (varias escalas), estadísticas descriptivas,
@@ -237,8 +245,8 @@ def page_1():
             inicio = st.form_submit_button("INICIO")
 
     with col2:
-        st.subheader("MET 2260")
-        st.image("Imagen2.png", caption="Concentración, Piro y Siderurgia, Adelante Metalurgia!!!...", use_container_width=300)
+        st.subheader("UNIVERSIDAD TÉCNICA DE ORURO")
+        st.image("Imagen2.png", caption="Ingeniería Metalúrgica y Ciencia de Materiales", use_container_width=300)
 
         if inicio:
             # Validate mandatory fields
@@ -1563,6 +1571,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
