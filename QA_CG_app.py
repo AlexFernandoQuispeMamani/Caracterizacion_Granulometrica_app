@@ -1124,15 +1124,42 @@ def page_5():
 
     # Mostrar en tres columnas
     col1, col2, col3 = st.columns(3)
+
     with col1:
         st.subheader("Parámetros GGS")
-        st.table(ggs_table.style.format("{:.4f}"))
+        st.table(
+            ggs_table.style.format({
+                'dmax (µm)': "{:.2f}",
+                'm': "{:.2f}",
+                'Σε²': "{:.2e}",
+                'F.O.': "{:.2e}"
+            })
+        )
+
     with col2:
         st.subheader("Parámetros RRSB")
-        st.table(rrsb_table.style.format("{:.4f}"))
+        st.table(
+            rrsb_table.style.format({
+                'l (µm)': "{:.2f}",
+                'm': "{:.2f}",
+                'Σε²': "{:.2e}",
+                'F.O.': "{:.2e}"
+            })
+        )
+
     with col3:
         st.subheader("Parámetros Doble Weibull")
-        st.table(dw_table.style.format("{:.4f}"))
+        st.table(
+            dw_table.style.format({
+                'δ0​': "{:.2f}",
+                'δ1': "{:.2f}",
+                'δ2': "{:.2f}",
+                'd80 (µm)': "{:.2f}",
+                'Σε²': "{:.2e}",
+                'F.O.': "{:.2e}"
+            })
+        )
+
 
     # ------------------- VALIDACIÓN DEL MODELO -------------------
     st.subheader("🔹 Validación del modelo")
@@ -1323,17 +1350,6 @@ def page_5():
 
     # Mostrar figura
     st.pyplot(fig, use_container_width=True)
-    
-    # ------------------- Conclusión automática -------------------
-    fits = st.session_state.models_fit
-
-    # Buscar el modelo con menor F.O.
-    fo_values = {k: v['FO'] for k,v in fits.items()}
-    best_model = min(fo_values, key=fo_values.get)
-    best_fo = fo_values[best_model]
-
-    # Mostrar comentario
-    st.markdown(f"**CONCLUSIÓN:** El modelo que mejor describe los puntos experimentales de la muestra es el modelo **{best_model}** porque presenta un valor de F.O. de **{best_fo:.4f}**.")
 
     # ------------------- Navegación -------------------
     col1, col2 = st.columns(2)
@@ -1412,6 +1428,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
