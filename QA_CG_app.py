@@ -1496,6 +1496,54 @@ def page_6():
                 if metrics_data:
                     pd.DataFrame(metrics_data).to_excel(writer, sheet_name='ValidaciónModelos', index=False)
 
+    # ---------- Exportar a PDF ----------
+    from fpdf import FPDF
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(0, 10, "Reporte de Simulación Granulométrica", ln=True, align='C')
+
+    # Info usuario
+    if "user_info" in st.session_state:
+        pdf.set_font("Arial", '', 12)
+        for key, value in st.session_state['user_info'].items():
+            pdf.cell(0, 8, f"{key}: {value}", ln=True)
+
+    pdf.ln(5)
+
+    # Tablas principales
+    tables_to_export = {
+        "Entrada": "input_table",
+        "Resultados": "results_table",
+        "TamañosNominales": "nominal_sizes",
+        "Estadísticos": "stats_tbl"  # si lo creaste antes
+    }
+
+    for title, key in tables_to_export.items():
+        if key in st.session_state and st.session_state[key] is not None and not st.session_state[key].empty:
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 8, title, ln=True)
+            pdf.set_font("Arial", '', 10)
+            df = st.session_state[key]
+            for i in range(df.shape[0]):
+                row_text = " | ".join([str(x) for x in df.iloc[i].values])
+                pdf.cell(0, 6, row_text, ln=True)
+            pdf.ln(3)
+
+    # Guardar en memoria
+    pdf_output = io.BytesIO()
+    pdf.output(pdf_output)
+    pdf_output.seek(0)
+
+    # Botón para descargar PDF
+    st.download_button(
+        label="📄 Descargar PDF",
+        data=pdf_output,
+        file_name="Simulacion_Granulometrica.pdf",
+        mime="application/pdf"
+    )
+
     st.download_button(
         label="📥 Descargar Excel",
         data=output.getvalue(),
@@ -1532,6 +1580,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
