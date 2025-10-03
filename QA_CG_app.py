@@ -1496,52 +1496,46 @@ def page_6():
                 if metrics_data:
                     pd.DataFrame(metrics_data).to_excel(writer, sheet_name='ValidaciónModelos', index=False)
 
-    # ---------------- Exportar a PDF ----------------
-    from fpdf import FPDF
+    # ---------------- Exportar cada página como imagen y unir en PDF ----------------
 
+    # Crear PDF vacío
     pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", 'B', 16)
-    pdf.cell(0, 10, "Reporte de Simulación Granulométrica", ln=True, align='C')
+    pdf.set_auto_page_break(auto=True, margin=15)
 
-    # Info usuario
-    if "user_info" in st.session_state:
-        pdf.set_font("Arial", '', 12)
-        for key, value in st.session_state['user_info'].items():
-            pdf.cell(0, 8, f"{key}: {value}", ln=True)
+    # Función para agregar una imagen de cada página de Streamlit
+    def add_page_image(fig, pdf_obj):
+        buf = BytesIO()
+        fig.savefig(buf, format='png', bbox_inches='tight')
+        buf.seek(0)
+        img = Image.open(buf)
+        w, h = img.size
+        pdf_w, pdf_h = 210, 297  # A4 mm
+        pdf_obj.add_page()
+        pdf_obj.image(buf, x=0, y=0, w=pdf_w, h=pdf_w*h/w)
+        buf.close()
 
-    pdf.ln(5)
+    # Capturar todas las páginas (ejemplo: páginas 1 a 5)
+    # Aquí debes generar las figuras tal como se muestran en la app
+    # Por ejemplo:
+    # fig1 = crear_figura_pagina1()   # tu función que dibuja página 1
+    # add_page_image(fig1, pdf)
+    # fig2 = crear_figura_pagina2()
+    # add_page_image(fig2, pdf)
+    # ...
+    # fig5 = crear_figura_pagina5()
+    # add_page_image(fig5, pdf)
 
-    # Tablas principales
-    tables_to_export = {
-        "Entrada": "input_table",
-        "Resultados": "results_table",
-        "TamañosNominales": "nominal_sizes",
-        "Estadísticos": "stats_tbl"
-    }
+    # Guardar PDF en memoria
+    pdf_bytes = pdf.output(dest='S')
+    pdf_output = BytesIO(pdf_bytes)
 
-    for title, key in tables_to_export.items():
-        if key in st.session_state and st.session_state[key] is not None and not st.session_state[key].empty:
-            pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 8, title, ln=True)
-            pdf.set_font("Arial", '', 10)
-            df = st.session_state[key]
-            for i in range(df.shape[0]):
-                row_text = " | ".join([str(x) for x in df.iloc[i].values])
-                pdf.cell(0, 6, row_text, ln=True)
-            pdf.ln(3)
-
-    # Guardar PDF en memoria con fpdf2
-    pdf_bytes = pdf.output(dest='S')  # ya son bytes, no usar .encode()
-    pdf_output = io.BytesIO(pdf_bytes)
-
-    # ---------------- Botones de descarga ----------------
+    # Botón para descargar PDF final
     st.download_button(
-        label="📄 Descargar PDF",
+        label="📄 Descargar PDF (Todas las páginas)",
         data=pdf_output,
         file_name="Simulacion_Granulometrica.pdf",
         mime="application/pdf",
-        key="download_pdf"
+        key="download_pdf_img"
     )
 
     st.download_button(
@@ -1582,6 +1576,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
