@@ -220,8 +220,8 @@ def page_1():
     st.markdown(
         """
         <div style='text-align: center;'>
-            <p><b>Alex Fernando Quispe Mamani</b></p>
-            <p>INGENIERO METALÚRGICO</p>
+            <p style='margin-bottom:0;'><b>Alex Fernando Quispe Mamani</b></p>
+            <p style='margin-top:0;'>INGENIERO METALÚRGICO</p>
         </div>
         """, 
         unsafe_allow_html=True
@@ -267,7 +267,17 @@ def page_1():
             unsafe_allow_html=True
         )
 
-        st.image("Imagen2.png", width=300, caption="Ingeniería Metalúrgica y Ciencia de Materiales")
+        st.markdown(
+            """
+            <div style="display: flex; justify-content: center;">
+                <img src="Imagen2.png" width="300">
+            </div>
+            <div style="text-align: center;">
+                <em>Ingeniería Metalúrgica y Ciencia de Materiales</em>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
         if inicio:
             # Validate mandatory fields
@@ -1592,6 +1602,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
