@@ -19,7 +19,6 @@ import qrcode
 from PIL import Image
 import tempfile
 import openpyxl
-from fpdf import FPDF
 
 # ---------------- Configuración ----------------
 st.set_page_config(page_title="CARACTERIZACIÓN GRANULOMÉTRICA", layout="wide")
@@ -1478,6 +1477,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
