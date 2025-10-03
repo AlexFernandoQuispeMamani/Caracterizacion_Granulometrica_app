@@ -1497,6 +1497,8 @@ def page_6():
                     pd.DataFrame(metrics_data).to_excel(writer, sheet_name='ValidaciónModelos', index=False)
 
     # ---------------- Exportar cada página como imagen y unir en PDF ----------------
+    from io import BytesIO
+    from fpdf import FPDF
 
     # Crear PDF vacío
     pdf = FPDF()
@@ -1576,6 +1578,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
