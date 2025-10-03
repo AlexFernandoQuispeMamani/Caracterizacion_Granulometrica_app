@@ -1381,13 +1381,12 @@ def page_6():
         if "results_table" in st.session_state and not st.session_state.results_table.empty:
             st.session_state.results_table.to_excel(writer, sheet_name='Resultados', index=False)
 
-        # ---------------- Página 4: combinar todas sus tablas ----------------
-        pagina4_tables = []
+        # Tamaños nominales
         if "nominal_sizes" in st.session_state and not st.session_state.nominal_sizes.empty:
-            pagina4_tables.append(st.session_state.nominal_sizes.assign(Tabla="TamañosNominales"))
+            st.session_state.nominal_sizes.to_excel(writer, sheet_name='TamañosNominales', index=False)
 
+        # Estadísticos descriptivos
         if "results_table" in st.session_state and not st.session_state.results_table.empty:
-            # Estadísticos descriptivos
             results = st.session_state.results_table.copy()
             sizes = results['Tamaño inferior (µm)'].iloc[:-1].replace(0, np.nan).dropna()
             weights = results['%Peso'].iloc[:-1].replace(0, np.nan).dropna() / 100.0
@@ -1408,14 +1407,40 @@ def page_6():
                     'Estadístico':['Media (µm)','Mediana (µm)','Moda (µm)','Varianza (µm²)',
                                    'Desvío estándar (µm)','Curtosis','Rango (µm)'],
                     'Valor':[mean, median, mode, variance, std, kurtosis, rango]
-                }).assign(Tabla="Estadísticos")
-                pagina4_tables.append(stats_tbl)
+                })
+                stats_tbl.to_excel(writer, sheet_name='Estadísticos', index=False)
 
-        if pagina4_tables:
-            pd.concat(pagina4_tables, ignore_index=True).to_excel(writer, sheet_name='Pagina4', index=False)
+        # Folk & Ward (si existe)
+        if "nominal_sizes" in st.session_state and not st.session_state.nominal_sizes.empty:
+            try:
+                req_pcts = [5,16,25,50,75,84,95]
+                ds = {}
+                for p in req_pcts:
+                    match = st.session_state.nominal_sizes.loc[
+                        (st.session_state.nominal_sizes['%F(d)'].sub(p).abs() < 1e-6), 'Tamaño (µm)']
+                    if match.empty:
+                        ds = None
+                        break
+                    else:
+                        ds[p] = float(match.iloc[0])
+                if ds:
+                    ds_mm = {p: ds[p]/1000.0 for p in ds}
+                    phi = {p: -np.log2(ds_mm[p]) for p in ds_mm}
+                    M = (phi[16] + phi[50] + phi[84]) / 3.0
+                    Md = phi[50]
+                    sigmaI = abs((phi[84] - phi[16]) / 4.0 + (phi[95] - phi[5]) / 6.6)
+                    SkI = ((2*phi[50] - phi[16] - phi[84]) / (2*(phi[84]-phi[16]))) + \
+                          ((2*phi[50] - phi[5] - phi[95]) / (2*(phi[95]-phi[5])))
+                    KG = (phi[95] - phi[5]) / (2.44 * (phi[75] - phi[25]))
+                    folk_tbl = pd.DataFrame({
+                        'Parámetro':['M (φ)','Md (φ)','σ (φ)','Sk (φ)','K (φ)'],
+                        'Valor':[M, Md, sigmaI, SkI, KG]
+                    })
+                    folk_tbl.to_excel(writer, sheet_name='FolkWard', index=False)
+            except:
+                pass
 
-        # ---------------- Página 5: combinar todas sus tablas ----------------
-        pagina5_tables = []
+        # Parámetros de modelos (página 5)
         if "models_fit" in st.session_state and st.session_state.models_fit:
             fits = st.session_state.models_fit
             ggs_params = fits['GGS']['params'] if 'GGS' in fits else [np.nan,np.nan]
@@ -1424,19 +1449,51 @@ def page_6():
 
             ggs_table = pd.DataFrame([{
                 'dmax (µm)': ggs_params[1], 'm': ggs_params[0], 'F.O.': fits['GGS']['FO'] if 'GGS' in fits else np.nan
-            }]).assign(Tabla="GGS_Params")
+            }])
             rrsb_table = pd.DataFrame([{
                 'l (µm)': rrsb_params[1], 'm': rrsb_params[0], 'F.O.': fits['RRSB']['FO'] if 'RRSB' in fits else np.nan
-            }]).assign(Tabla="RRSB_Params")
+            }])
             dw_table = pd.DataFrame([{
                 'δ0​': dw_params[0], 'δ1': dw_params[1], 'δ2': dw_params[2], 'd80 (µm)': dw_params[3],
                 'F.O.': fits['DoubleWeibull']['FO'] if 'DoubleWeibull' in fits else np.nan
-            }]).assign(Tabla="DoubleWeibull_Params")
+            }])
 
-            pagina5_tables.extend([ggs_table, rrsb_table, dw_table])
+            ggs_table.to_excel(writer, sheet_name='GGS_Params', index=False)
+            rrsb_table.to_excel(writer, sheet_name='RRSB_Params', index=False)
+            dw_table.to_excel(writer, sheet_name='DoubleWeibull_Params', index=False)
 
-        if pagina5_tables:
-            pd.concat(pagina5_tables, ignore_index=True).to_excel(writer, sheet_name='Pagina5', index=False)
+        # Métricas de validación
+        if "results_table" in st.session_state and st.session_state.results_table is not None:
+            df_fit = st.session_state.results_table.iloc[:-1].copy()
+            mask = (df_fit['Tamaño inferior (µm)'] > 0) & (~np.isnan(df_fit['%F(d)']))
+            d = df_fit['Tamaño inferior (µm)'][mask].astype(float).values
+            y_exp = df_fit['%F(d)'][mask].astype(float).values
+            if len(d)>0 and "models_fit" in st.session_state and st.session_state.models_fit:
+                fits = st.session_state.models_fit
+                def model_metrics(y_exp, y_pred, k):
+                    n = len(y_exp)
+                    residuals = y_exp - y_pred
+                    SSE = np.sum(residuals**2)
+                    R2 = 1 - (SSE / np.sum((y_exp - np.mean(y_exp))**2))
+                    MAPE = np.mean(np.abs((y_exp - y_pred) / y_exp)) * 100
+                    AIC = n * np.log(SSE / n) + 2 * k
+                    BIC = n * np.log(SSE / n) + k * np.log(n)
+                    return R2, MAPE, AIC, BIC
+
+                metrics_data = []
+                for model_name, y_model_func, k in [
+                    ('GGS', lambda: GGS_model(d,*ggs_params), 2),
+                    ('RRSB', lambda: RRSB_model(d,*rrsb_params), 2),
+                    ('DobleWeibull', lambda: double_weibull(d,*dw_params), 4)
+                ]:
+                    try:
+                        y_pred = y_model_func()
+                        R2, MAPE, AIC, BIC = model_metrics(y_exp, y_pred, k)
+                        metrics_data.append({"Modelo": model_name, "R²": R2, "MAPE (%)": MAPE, "AIC": AIC, "BIC": BIC})
+                    except:
+                        pass
+                if metrics_data:
+                    pd.DataFrame(metrics_data).to_excel(writer, sheet_name='ValidaciónModelos', index=False)
 
     # ---------------- Botón para descargar Excel ----------------
     st.download_button(
@@ -1477,6 +1534,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
