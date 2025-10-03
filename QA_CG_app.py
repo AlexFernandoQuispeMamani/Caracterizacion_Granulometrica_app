@@ -1368,34 +1368,138 @@ def page_6():
     # Construir Excel en memoria
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
+
         # Info usuario
         if "user_info" in st.session_state:
-            ui = pd.DataFrame([st.session_state['user_info']])
-            ui.to_excel(writer, sheet_name='InfoUsuario', index=False)
+            pd.DataFrame([st.session_state['user_info']]).to_excel(writer, sheet_name='InfoUsuario', index=False)
+
         # Tabla de entrada
         if "input_table" in st.session_state and not st.session_state.input_table.empty:
             st.session_state.input_table.to_excel(writer, sheet_name='Entrada', index=False)
+
         # Resultados
         if "results_table" in st.session_state and not st.session_state.results_table.empty:
             st.session_state.results_table.to_excel(writer, sheet_name='Resultados', index=False)
+
         # Tamaños nominales
         if "nominal_sizes" in st.session_state and not st.session_state.nominal_sizes.empty:
             st.session_state.nominal_sizes.to_excel(writer, sheet_name='TamañosNominales', index=False)
-        # Modelos
+
+        # Estadísticos descriptivos (página 4)
+        if "results_table" in st.session_state and not st.session_state.results_table.empty:
+            results = st.session_state.results_table.copy()
+            sizes = results['Tamaño inferior (µm)'].iloc[:-1].replace(0, np.nan).dropna()
+            weights = results['%Peso'].iloc[:-1].replace(0, np.nan).dropna() / 100.0
+            mask = (~sizes.isna()) & (~weights.isna())
+            sizes = sizes.loc[mask]
+            weights = weights.loc[mask]
+            if len(sizes) > 0:
+                wsum = weights.sum()
+                mean = float((sizes * weights).sum() / wsum) if wsum>0 else float(sizes.mean())
+                median = float(np.interp(50, 100*weights.cumsum(), sizes))
+                mode_idx = np.argmax(results['%Peso'].iloc[:-1].values)
+                mode = float(results['Tamaño inferior (µm)'].iloc[:-1].values[mode_idx])
+                variance = float(((sizes - mean)**2 * weights).sum() / (weights.sum() if weights.sum()>0 else len(sizes)))
+                std = float(np.sqrt(variance))
+                kurtosis = float(pd.Series(sizes).kurtosis())
+                rango = float(np.nanmax(sizes) - np.nanmin(sizes))
+                stats_tbl = pd.DataFrame({
+                    'Estadístico':['Media (µm)','Mediana (µm)','Moda (µm)','Varianza (µm²)',
+                                   'Desvío estándar (µm)','Curtosis','Rango (µm)'],
+                    'Valor':[mean, median, mode, variance, std, kurtosis, rango]
+                })
+                stats_tbl.to_excel(writer, sheet_name='Estadísticos', index=False)
+
+        # Folk & Ward (si existe)
+        if "nominal_sizes" in st.session_state and not st.session_state.nominal_sizes.empty:
+            try:
+                req_pcts = [5,16,25,50,75,84,95]
+                ds = {}
+                for p in req_pcts:
+                    match = st.session_state.nominal_sizes.loc[
+                        (st.session_state.nominal_sizes['%F(d)'].sub(p).abs() < 1e-6), 'Tamaño (µm)']
+                    if match.empty:
+                        ds = None
+                        break
+                    else:
+                        ds[p] = float(match.iloc[0])
+                if ds:
+                    ds_mm = {p: ds[p]/1000.0 for p in ds}
+                    phi = {p: -np.log2(ds_mm[p]) for p in ds_mm}
+                    M = (phi[16] + phi[50] + phi[84]) / 3.0
+                    Md = phi[50]
+                    sigmaI = abs((phi[84] - phi[16]) / 4.0 + (phi[95] - phi[5]) / 6.6)
+                    SkI = ((2*phi[50] - phi[16] - phi[84]) / (2*(phi[84]-phi[16]))) + \
+                          ((2*phi[50] - phi[5] - phi[95]) / (2*(phi[95]-phi[5])))
+                    KG = (phi[95] - phi[5]) / (2.44 * (phi[75] - phi[25]))
+                    folk_tbl = pd.DataFrame({
+                        'Parámetro':['M (φ)','Md (φ)','σ (φ)','Sk (φ)','K (φ)'],
+                        'Valor':[M, Md, sigmaI, SkI, KG]
+                    })
+                    folk_tbl.to_excel(writer, sheet_name='FolkWard', index=False)
+            except:
+                pass
+
+        # Parámetros de modelos (página 5)
         if "models_fit" in st.session_state and st.session_state.models_fit:
-            models_df = pd.DataFrame([
-                {'Modelo': k, 'FO': v['FO'], 'Parametros': str(v['params'])}
-                for k, v in st.session_state.models_fit.items()
-            ])
-            models_df.to_excel(writer, sheet_name='Modelos', index=False)
+            fits = st.session_state.models_fit
+            # GGS
+            ggs_params = fits['GGS']['params'] if 'GGS' in fits else [np.nan,np.nan]
+            rrsb_params = fits['RRSB']['params'] if 'RRSB' in fits else [np.nan,np.nan]
+            dw_params = fits['DoubleWeibull']['params'] if 'DoubleWeibull' in fits else [np.nan]*4
 
-    data = output.getvalue()
+            ggs_table = pd.DataFrame([{
+                'dmax (µm)': ggs_params[1], 'm': ggs_params[0], 'F.O.': fits['GGS']['FO'] if 'GGS' in fits else np.nan
+            }])
+            rrsb_table = pd.DataFrame([{
+                'l (µm)': rrsb_params[1], 'm': rrsb_params[0], 'F.O.': fits['RRSB']['FO'] if 'RRSB' in fits else np.nan
+            }])
+            dw_table = pd.DataFrame([{
+                'δ0​': dw_params[0], 'δ1': dw_params[1], 'δ2': dw_params[2], 'd80 (µm)': dw_params[3],
+                'F.O.': fits['DoubleWeibull']['FO'] if 'DoubleWeibull' in fits else np.nan
+            }])
 
-    # Botón oficial de Streamlit para descargar
+            ggs_table.to_excel(writer, sheet_name='GGS_Params', index=False)
+            rrsb_table.to_excel(writer, sheet_name='RRSB_Params', index=False)
+            dw_table.to_excel(writer, sheet_name='DoubleWeibull_Params', index=False)
+
+        # Métricas de validación
+        if "results_table" in st.session_state and st.session_state.results_table is not None:
+            df_fit = st.session_state.results_table.iloc[:-1].copy()
+            mask = (df_fit['Tamaño inferior (µm)'] > 0) & (~np.isnan(df_fit['%F(d)']))
+            d = df_fit['Tamaño inferior (µm)'][mask].astype(float).values
+            y_exp = df_fit['%F(d)'][mask].astype(float).values
+            if len(d)>0 and "models_fit" in st.session_state and st.session_state.models_fit:
+                fits = st.session_state.models_fit
+                def model_metrics(y_exp, y_pred, k):
+                    n = len(y_exp)
+                    residuals = y_exp - y_pred
+                    SSE = np.sum(residuals**2)
+                    R2 = 1 - (SSE / np.sum((y_exp - np.mean(y_exp))**2))
+                    MAPE = np.mean(np.abs((y_exp - y_pred) / y_exp)) * 100
+                    AIC = n * np.log(SSE / n) + 2 * k
+                    BIC = n * np.log(SSE / n) + k * np.log(n)
+                    return R2, MAPE, AIC, BIC
+
+                metrics_data = []
+                for model_name, y_model_func, k in [
+                    ('GGS', lambda: GGS_model(d,*ggs_params), 2),
+                    ('RRSB', lambda: RRSB_model(d,*rrsb_params), 2),
+                    ('DobleWeibull', lambda: double_weibull(d,*dw_params), 4)
+                ]:
+                    try:
+                        y_pred = y_model_func()
+                        R2, MAPE, AIC, BIC = model_metrics(y_exp, y_pred, k)
+                        metrics_data.append({"Modelo": model_name, "R²": R2, "MAPE (%)": MAPE, "AIC": AIC, "BIC": BIC})
+                    except:
+                        pass
+                if metrics_data:
+                    pd.DataFrame(metrics_data).to_excel(writer, sheet_name='ValidaciónModelos', index=False)
+
     st.download_button(
         label="📥 Descargar Excel",
-        data=data,
-        file_name="analisis_granulometrico.xlsx",
+        data=output.getvalue(),
+        file_name="Analisis_Granulometrico.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
@@ -1428,6 +1532,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
