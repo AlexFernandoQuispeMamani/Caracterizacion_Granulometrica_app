@@ -904,7 +904,7 @@ def page_5():
                     f_ggs,
                     x0,
                     method='L-BFGS-B',
-                    # 🔹 dmax restringido a max(d)
+                    # dmax restringido a max(d)
                     bounds=[(0.01, 10), (1e-6, np.max(d)*10)],
                     options={'ftol': 1e-12, 'maxiter': 10000}
                 )
@@ -1163,7 +1163,7 @@ def page_5():
 
 
     # ------------------- VALIDACIÓN DEL MODELO -------------------
-    st.subheader("🔹 Validación del modelo")
+    st.subheader("Validación del modelo")
 
     def model_metrics(y_exp, y_pred, k):
         """Calcula R2, MAPE, AIC y BIC para un modelo"""
@@ -1223,7 +1223,7 @@ def page_5():
                 "con los valores más bajos de AIC y BIC.")
 
     # Conclusión general
-    best_model = "RRSB"  # 🔹 Aquí puedes automatizar con reglas de decisión
+    best_model = "RRSB"  # Aquí puedes automatizar con reglas de decisión
     st.markdown(f"**CONCLUSIÓN:** Aunque {best_mape_model} presenta el menor error, "
                 f"el análisis global de todas las métricas indica que el modelo más representativo es **{best_model}**.")
  
@@ -1533,7 +1533,7 @@ def page_6():
             pdf.ln(3)
 
     # Guardar en memoria
-    pdf_bytes = pdf.output(dest='S').encode('latin1')  # <-- Esto devuelve bytes
+    pdf_bytes = pdf.output(dest='S')
     pdf_output = io.BytesIO(pdf_bytes)
 
     # Botón para descargar PDF
@@ -1545,10 +1545,10 @@ def page_6():
     )
 
     st.download_button(
-        label="📥 Descargar Excel",
-        data=output.getvalue(),
-        file_name="Analisis_Granulometrico.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        label="📄 Descargar PDF",
+        data=pdf_bytes,
+        file_name="Simulacion_Granulometrica.pdf",
+        mime="application/pdf"
     )
     
     col1, col2 = st.columns(2)
@@ -1580,6 +1580,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
