@@ -267,17 +267,8 @@ def page_1():
             unsafe_allow_html=True
         )
 
-        st.markdown(
-            """
-            <div style='display: flex; justify-content: center;'>
-                <img src='Imagen2.png' alt='Ingeniería Metalúrgica y Ciencia de Materiales' width='300'>
-            </div>
-            <div style='text-align: center;'>
-                <em>Ingeniería Metalúrgica y Ciencia de Materiales</em>
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
+        st.image("Imagen2.png", width=300, caption="Ingeniería Metalúrgica y Ciencia de Materiales")
+
         if inicio:
             # Validate mandatory fields
             if not nombre or not correo or not procedencia or not codigo:
@@ -1601,6 +1592,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
