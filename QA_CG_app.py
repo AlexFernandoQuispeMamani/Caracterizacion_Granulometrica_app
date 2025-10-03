@@ -218,15 +218,28 @@ def page_1():
     )
 
     st.markdown(
-        "<p style='text-align: center;'><b>Desarrollado por:</b> Alex Fernando Quispe Mamani — Ingeniero Metalúrgico (UTO)</p>", 
+        """
+        <div style='text-align: center;'>
+            <p><b>Alex Fernando Quispe Mamani</b></p>
+            <p>INGENIERO METALÚRGICO</p>
+        </div>
+        """, 
         unsafe_allow_html=True
     )
 
     st.markdown("""
-    Este programa realiza un análisis granulométrico completo a partir de pesos retenidos por tamiz o
-    tamaños ingresados manualmente. Genera tablas, gráficos (varias escalas), estadísticas descriptivas,
-    estimaciones según Folk & Ward, ajuste a modelos (GGS, RRSB, Doble Weibull) y exportación de resultados.
+    La aplicación permite procesar datos experimentales obtenidos de la clasificación por tamaños de muestras 
+    granulares mediante tamización o técnicas similares. El programa permite seleccionar mallas de la serie 
+    Tyler Standard o insertar los tamaños de partícula de manera personalizada, los pesos de cada fracción y 
+    el peso total de la muestra. A partir de esta información se generan tablas y representaciones gráficas en 
+    diferentes escalas. Asimismo, incorpora cálculos de estadística descriptiva, estimaciones basadas en los 
+    parámetros de Folk & Ward, cálculo de tamaños nominales, %pesos acumulados de subtamaño y el ajuste a 
+    modelos empíricos de distribución granulométrica (GGS, RRSB y Doble Weibull). Finalmente, posibilita la 
+    exportación de resultados para su análisis y documentación.
     """)
+
+    st.markdown("<br>", unsafe_allow_html=True) 
+    
     st.markdown("### INFORMACIÓN GENERAL")
     col1, col2 = st.columns([2,1])
 
@@ -245,9 +258,26 @@ def page_1():
             inicio = st.form_submit_button("INICIO")
 
     with col2:
-        st.subheader("UNIVERSIDAD TÉCNICA DE ORURO")
-        st.image("Imagen2.png", caption="Ingeniería Metalúrgica y Ciencia de Materiales", use_container_width=300)
+        st.markdown(
+            """
+            <div style='text-align: center;'>
+                <h3>UNIVERSIDAD TÉCNICA DE ORURO</h3>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
 
+        st.markdown(
+            """
+            <div style='display: flex; justify-content: center;'>
+                <img src='Imagen2.png' alt='Ingeniería Metalúrgica y Ciencia de Materiales' width='300'>
+            </div>
+            <div style='text-align: center;'>
+                <em>Ingeniería Metalúrgica y Ciencia de Materiales</em>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
         if inicio:
             # Validate mandatory fields
             if not nombre or not correo or not procedencia or not codigo:
@@ -1571,6 +1601,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
