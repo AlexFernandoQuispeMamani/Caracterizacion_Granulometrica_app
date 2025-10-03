@@ -1518,7 +1518,7 @@ def page_6():
         "Entrada": "input_table",
         "Resultados": "results_table",
         "TamañosNominales": "nominal_sizes",
-        "Estadísticos": "stats_tbl"  # si lo creaste antes
+        "Estadísticos": "stats_tbl"
     }
 
     for title, key in tables_to_export.items():
@@ -1528,14 +1528,13 @@ def page_6():
             pdf.set_font("Arial", '', 10)
             df = st.session_state[key]
             for i in range(df.shape[0]):
-                row_text = " | ".join([str(x) for x in df.iloc[i].values])
-                pdf.cell(0, 6, row_text, ln=True)
+            row_text = " | ".join([str(x) for x in df.iloc[i].values])
+            pdf.cell(0, 6, row_text, ln=True)
             pdf.ln(3)
 
     # Guardar en memoria
-    pdf_output = io.BytesIO()
-    pdf.output(pdf_output)
-    pdf_output.seek(0)
+    pdf_bytes = pdf.output(dest='S').encode('latin1')  # <-- Esto devuelve bytes
+    pdf_output = io.BytesIO(pdf_bytes)
 
     # Botón para descargar PDF
     st.download_button(
@@ -1581,6 +1580,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
