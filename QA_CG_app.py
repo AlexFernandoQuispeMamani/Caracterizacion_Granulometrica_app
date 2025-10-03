@@ -281,7 +281,7 @@ def page_2():
         # build labels for multiselect
         malla_items = sorted(TYLER.items(), key=lambda x: -x[1])
         labels = [
-            f'{k}"' if k <= 3.5 else f"{int(k) if float(k).is_integer() else k}#"
+            f'{k}"' if 0.371 <= k <= 1.05 else f"{int(k) if float(k).is_integer() else k}#"
             for k, _ in malla_items
         ]
         selected_labels = st.multiselect(
@@ -302,11 +302,17 @@ def page_2():
                     k_num = lab_clean
                 selected_keys.append(k_num)
 
+                # Determinar etiqueta correcta
+                if 0.371 <= k_num <= 1.05:
+                    label = f'{k_num}"'
+                else:
+                    label = f"{int(k_num) if k_num.is_integer() else k_num}#"
+
                 # Obtener apertura desde TYLER
                 apertura = TYLER.get(k_num, np.nan)
 
                 rows.append({
-                    'Nº Malla (Tyler)': lab,
+                    'Nº Malla (Tyler)': label,
                     'Abertura (µm)': apertura,
                     'Peso (g)': np.nan
                 })
@@ -1557,6 +1563,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
