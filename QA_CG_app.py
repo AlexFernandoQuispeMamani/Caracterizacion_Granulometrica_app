@@ -260,13 +260,20 @@ def page_2():
     st.markdown("Si tiene números de malla use **SELECCIONAR MALLAS**, de lo contrario use **INSERTAR MANUALMENTE**.")
 
     # Peso total widget (synchronization)
-    st.number_input("Peso total (g):", min_value=0.0, value=float(st.session_state.get('peso_total_input', 1000.0)),
-                    step=0.1, key='peso_total_input', on_change=peso_input_on_change)
-    # garantizamos que la variable persistente esté sincronizada
-    st.session_state.peso_total = float(st.session_state.get('peso_total', st.session_state.get('peso_total_input', 1000.0)))
+    st.number_input(
+        "Peso total (g):", min_value=0.0,
+        value=float(st.session_state.get('peso_total_input', 1000.0)),
+        step=0.1, key='peso_total_input', on_change=peso_input_on_change
+    )
+    st.session_state.peso_total = float(
+        st.session_state.get('peso_total', st.session_state.get('peso_total_input', 1000.0))
+    )
 
     st.markdown("**Modo de inserción de datos**")
-    mode = st.radio("Selecciona modo:", ["SELECCIONAR MALLAS", "INSERTAR MANUALMENTE"], index=0, key='mode_radio')
+    mode = st.radio(
+        "Selecciona modo:", ["SELECCIONAR MALLAS", "INSERTAR MANUALMENTE"],
+        index=0, key='mode_radio'
+    )
     st.session_state.selected_mode = mode
 
     if mode == "SELECCIONAR MALLAS":
@@ -274,57 +281,50 @@ def page_2():
         # build labels for multiselect
         malla_items = sorted(TYLER.items(), key=lambda x: -x[1])
         labels = [
-            f'{k}" - {v} µm' if k <= 3.5 else f"{int(k) if float(k).is_integer() else k}# - {v} µm"
-            for k, v in malla_items
+            f'{k}"' if k <= 3.5 else f"{int(k) if float(k).is_integer() else k}#"
+            for k, _ in malla_items
         ]
-        selected_labels = st.multiselect("Selecciona mallas (múltiple, ordenadas descendente si quieres):", labels, default=st.session_state.get('generated_mallas_labels', []))
+        selected_labels = st.multiselect(
+            "Selecciona mallas (múltiple, ordenadas descendente si quieres):",
+            labels, default=st.session_state.get('generated_mallas_labels', [])
+        )
 
         if st.button("Generar tabla de mallas"):
             # convert labels to keys
             selected_keys = []
             rows = []
             for lab in selected_labels:
-                key_str = lab.split('#')[0]
+                lab_clean = lab.replace('"','').replace('#','')
                 try:
-                    k = int(key_str)
+                    k_num = float(lab_clean)
                 except:
-                    try:
-                        k = float(key_str)
-                    except:
-                        k = key_str
-                selected_keys.append(k)
-            st.session_state['generated_mallas'] = selected_keys
-            st.session_state['generated_mallas_labels'] = selected_labels
+                    k_num = lab_clean
+                selected_keys.append(k_num)
 
-            for k in selected_keys:
-                try:
-                    k_num = float(k)
-                except:
-                    k_num = None
-
-                if k_num is not None and k_num <= 3.5:
-                    label = f'{k_num}"'
-                elif k_num is not None:
-                    label = f"{int(k_num) if k_num.is_integer() else k_num}#"
-                else:
-                    label = f"{k}#"  # fallback, nunca rompe
+                # Obtener apertura desde TYLER
+                apertura = TYLER.get(k_num, np.nan)
 
                 rows.append({
-                    'Nº Malla (Tyler)': label,
-                    'Abertura (µm)': TYLER.get(k, np.nan),
+                    'Nº Malla (Tyler)': lab,
+                    'Abertura (µm)': apertura,
                     'Peso (g)': np.nan
                 })
 
             if len(rows) == 0:
                 st.warning("Selecciona al menos una malla.")
             else:
+                st.session_state['generated_mallas'] = selected_keys
+                st.session_state['generated_mallas_labels'] = selected_labels
                 st.session_state.input_table = pd.DataFrame(rows)
                 st.success("Tabla generada. Completa la columna 'Peso (g)' con tus datos y pulsa EJECUTAR.")
                 st.rerun()
 
     else:  # INSERTAR MANUALMENTE
         st.info("Insertar manualmente los tamaños (µm) y pesos (g).")
-        n = st.number_input("Número de filas a insertar (3-25):", min_value=3, max_value=25, value=6, step=1, key='n_rows_input')
+        n = st.number_input(
+            "Número de filas a insertar (3-25):", min_value=3, max_value=25,
+            value=6, step=1, key='n_rows_input'
+        )
         if st.button("Generar tabla manual"):
             df = pd.DataFrame({'Tamaño (µm)': [np.nan]*int(n), 'Peso (g)': [np.nan]*int(n)})
             st.session_state.input_table = df
@@ -333,7 +333,9 @@ def page_2():
 
     st.markdown("**Tabla de entrada** (edítala y luego pulsa EJECUTAR):")
     if not st.session_state.input_table.empty:
-        edited = st.data_editor(st.session_state.input_table, num_rows="dynamic", key='input_table_editor')
+        edited = st.data_editor(
+            st.session_state.input_table, num_rows="dynamic", key='input_table_editor'
+        )
         st.session_state.input_table = edited
 
     col1, col2, col3 = st.columns([1,1,1])
@@ -343,13 +345,13 @@ def page_2():
             st.rerun()
     with col2:
         if st.button("EJECUTAR"):
-            # validation
             if st.session_state.input_table.empty:
                 st.error("Genera y completa la tabla antes de ejecutar.")
             else:
-                # compute and store results_table ONCE (this prevents recompute on widget change)
                 try:
-                    results = compute_analysis(st.session_state.input_table, st.session_state.selected_mode)
+                    results = compute_analysis(
+                        st.session_state.input_table, st.session_state.selected_mode
+                    )
                     st.session_state.results_table = results
                     st.success("Análisis calculado correctamente.")
                     st.session_state.page = 3
@@ -1554,6 +1556,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
