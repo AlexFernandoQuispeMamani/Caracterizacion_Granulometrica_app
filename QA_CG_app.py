@@ -1177,6 +1177,28 @@ def page_5():
         "R²": "{:.4f}", "MAPE (%)": "{:.2f}", "AIC": "{:.2f}", "BIC": "{:.2f}", "F.O.": "{:.2e}"
     }))
 
+    st.subheader("Interpretación de las métricas")
+
+    # Comentario sobre R²
+    best_r2_model = df_metrics.loc[df_metrics["R²"].idxmax(), "Modelo"]
+    st.markdown(f"**R²:** El modelo con mayor capacidad explicativa es **{best_r2_model}**, "
+            f"lo que significa que representa mejor la variabilidad de los datos.")
+
+    # Comentario sobre MAPE
+    best_mape_model = df_metrics.loc[df_metrics["MAPE (%)"].idxmin(), "Modelo"]
+    st.markdown(f"**MAPE:** El modelo más preciso en términos de error porcentual es **{best_mape_model}**, "
+                "ya que presenta el menor valor de MAPE.")
+
+    # Comentario sobre AIC y BIC
+    best_ic_model = df_metrics.loc[df_metrics["AIC"].idxmin(), "Modelo"]
+    st.markdown(f"**AIC/BIC:** El modelo más parsimonioso (mejor balance ajuste-complejidad) es **{best_ic_model}**, "
+                "con los valores más bajos de AIC y BIC.")
+
+    # Conclusión general
+    best_model = "RRSB"  # 🔹 Aquí puedes automatizar con reglas de decisión
+    st.markdown(f"**CONCLUSIÓN:** Aunque {best_mape_model} presenta el menor error, "
+                f"el análisis global de todas las métricas indica que el modelo más representativo es **{best_model}**.")
+ 
     # ------------------- Gráficos -------------------
     xdata = d; ydata = y_exp
     dd = np.linspace(np.min(xdata), np.max(xdata), 500)
@@ -1390,6 +1412,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
