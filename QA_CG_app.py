@@ -1528,8 +1528,8 @@ def page_6():
             pdf.set_font("Arial", '', 10)
             df = st.session_state[key]
             for i in range(df.shape[0]):
-            row_text = " | ".join([str(x) for x in df.iloc[i].values])
-            pdf.cell(0, 6, row_text, ln=True)
+                row_text = " | ".join([str(x) for x in df.iloc[i].values])
+                pdf.cell(0, 6, row_text, ln=True)
             pdf.ln(3)
 
     # Guardar en memoria
@@ -1550,7 +1550,7 @@ def page_6():
         file_name="Analisis_Granulometrico.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-
+    
     col1, col2 = st.columns(2)
     with col1:
         if st.button("ANTERIOR"):
@@ -1580,6 +1580,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
