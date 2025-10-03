@@ -286,7 +286,8 @@ def page_2():
         ]
         selected_labels = st.multiselect(
             "Selecciona mallas (múltiple, ordenadas descendente si quieres):",
-            labels, default=st.session_state.get('generated_mallas_labels', [])
+            labels,
+            default=[lab for lab in st.session_state.get('generated_mallas_labels', []) if lab in labels]
         )
 
         if st.button("Generar tabla de mallas"):
@@ -1556,6 +1557,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
