@@ -1531,8 +1531,8 @@ def page_6():
                 pdf.cell(0, 6, row_text, ln=True)
             pdf.ln(3)
 
-    # Guardar PDF en memoria
-    pdf_bytes = pdf.output(dest='S').encode('latin1')
+    # Guardar PDF en memoria con fpdf2
+    pdf_bytes = pdf.output(dest='S')  # ya son bytes, no usar .encode()
     pdf_output = io.BytesIO(pdf_bytes)
 
     # ---------------- Botones de descarga ----------------
@@ -1582,6 +1582,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
