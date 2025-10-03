@@ -6,5 +6,4 @@ scipy
 qrcode
 Pillow
 openpyxl
-fpdf2
 
