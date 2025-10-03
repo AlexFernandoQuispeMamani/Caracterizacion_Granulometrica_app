@@ -1366,7 +1366,7 @@ def page_6():
     st.title("EXPORTACIÓN DE DATOS")
     st.markdown("Descargar todas las tablas en un archivo Excel. Cada usuario obtiene su propio archivo en modo solo lectura.")
 
-    # Construir Excel en memoria
+    # ---------------- Construir Excel en memoria ----------------
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
 
@@ -1386,7 +1386,7 @@ def page_6():
         if "nominal_sizes" in st.session_state and not st.session_state.nominal_sizes.empty:
             st.session_state.nominal_sizes.to_excel(writer, sheet_name='TamañosNominales', index=False)
 
-        # Estadísticos descriptivos (página 4)
+        # Estadísticos descriptivos
         if "results_table" in st.session_state and not st.session_state.results_table.empty:
             results = st.session_state.results_table.copy()
             sizes = results['Tamaño inferior (µm)'].iloc[:-1].replace(0, np.nan).dropna()
@@ -1444,7 +1444,6 @@ def page_6():
         # Parámetros de modelos (página 5)
         if "models_fit" in st.session_state and st.session_state.models_fit:
             fits = st.session_state.models_fit
-            # GGS
             ggs_params = fits['GGS']['params'] if 'GGS' in fits else [np.nan,np.nan]
             rrsb_params = fits['RRSB']['params'] if 'RRSB' in fits else [np.nan,np.nan]
             dw_params = fits['DoubleWeibull']['params'] if 'DoubleWeibull' in fits else [np.nan]*4
@@ -1497,7 +1496,7 @@ def page_6():
                 if metrics_data:
                     pd.DataFrame(metrics_data).to_excel(writer, sheet_name='ValidaciónModelos', index=False)
 
-    # ---------- Exportar a PDF ----------
+    # ---------------- Exportar a PDF ----------------
     from fpdf import FPDF
 
     pdf = FPDF()
@@ -1532,32 +1531,35 @@ def page_6():
                 pdf.cell(0, 6, row_text, ln=True)
             pdf.ln(3)
 
-    # Guardar en memoria
-    pdf_bytes = pdf.output(dest='S')
+    # Guardar PDF en memoria
+    pdf_bytes = pdf.output(dest='S').encode('latin1')
     pdf_output = io.BytesIO(pdf_bytes)
 
-    # Botón para descargar PDF
+    # ---------------- Botones de descarga ----------------
     st.download_button(
         label="📄 Descargar PDF",
         data=pdf_output,
         file_name="Simulacion_Granulometrica.pdf",
-        mime="application/pdf"
+        mime="application/pdf",
+        key="download_pdf"
     )
 
     st.download_button(
-        label="📄 Descargar PDF",
-        data=pdf_bytes,
-        file_name="Simulacion_Granulometrica.pdf",
-        mime="application/pdf"
+        label="📥 Descargar Excel",
+        data=output.getvalue(),
+        file_name="Analisis_Granulometrico.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key="download_excel"
     )
-    
+
+    # ---------------- Botones de navegación ----------------
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("ANTERIOR"):
+        if st.button("ANTERIOR", key="btn_anterior"):
             st.session_state.page = 5
             st.rerun()
     with col2:
-        if st.button("VOLVER AL INICIO"):
+        if st.button("VOLVER AL INICIO", key="btn_inicio"):
             st.session_state.page = 1
             st.rerun()
 
@@ -1580,6 +1582,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
