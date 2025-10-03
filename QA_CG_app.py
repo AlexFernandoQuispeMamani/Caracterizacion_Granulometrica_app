@@ -297,11 +297,24 @@ def page_2():
             st.session_state['generated_mallas_labels'] = selected_labels
 
             for k in selected_keys:
+                try:
+                    k_num = float(k)
+                except:
+                    k_num = None
+
+                if k_num is not None and k_num <= 3.5:
+                    label = f'{k_num}"'
+                elif k_num is not None:
+                    label = f"{int(k_num) if k_num.is_integer() else k_num}#"
+                else:
+                    label = f"{k}#"  # fallback, nunca rompe
+
                 rows.append({
-                    'Nº Malla (Tyler)': f'{k}"' if k <= 3.5 else f"{int(k) if float(k).is_integer() else k}#",
+                    'Nº Malla (Tyler)': label,
                     'Abertura (µm)': TYLER.get(k, np.nan),
                     'Peso (g)': np.nan
                 })
+
             if len(rows) == 0:
                 st.warning("Selecciona al menos una malla.")
             else:
@@ -1541,6 +1554,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
