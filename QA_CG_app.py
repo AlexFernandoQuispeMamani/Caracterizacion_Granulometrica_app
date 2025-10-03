@@ -1031,9 +1031,9 @@ def page_5():
         return
 
     fits = st.session_state.models_fit
-    ggs_params = fits['GGS']['params']
-    rrsb_params = fits['RRSB']['params']
-    dw_params = fits['DoubleWeibull']['params']
+    ggs_params = fits['GGS']['params']; FO_ggs = fits['GGS']['FO']
+    rrsb_params = fits['RRSB']['params']; FO_rrsb = fits['RRSB']['FO']
+    dw_params   = fits['DoubleWeibull']['params']; FO_dw = fits['DoubleWeibull']['FO']
 
     # ------------------- TABLA COMPARATIVA -------------------
     table_data = []
@@ -1390,6 +1390,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
