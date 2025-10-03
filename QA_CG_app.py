@@ -1133,7 +1133,50 @@ def page_5():
     with col3:
         st.subheader("Parámetros Doble Weibull")
         st.table(dw_table.style.format("{:.4f}"))
-        
+
+    # ------------------- VALIDACIÓN DEL MODELO -------------------
+    st.subheader("🔹 Validación del modelo")
+
+    def model_metrics(y_exp, y_pred, k):
+        """Calcula R2, MAPE, AIC y BIC para un modelo"""
+        n = len(y_exp)
+        residuals = y_exp - y_pred
+        SSE = np.sum(residuals**2)
+
+        # R²
+        R2 = 1 - (SSE / np.sum((y_exp - np.mean(y_exp))**2))
+
+        # MAPE
+        MAPE = np.mean(np.abs((y_exp - y_pred) / y_exp)) * 100
+
+        # AIC y BIC
+        AIC = n * np.log(SSE / n) + 2 * k
+        BIC = n * np.log(SSE / n) + k * np.log(n)
+
+        return R2, MAPE, AIC, BIC
+
+    metrics_data = []
+
+    if y_ggs is not None:
+        R2, MAPE, AIC, BIC = model_metrics(y_exp, y_ggs, k=2)
+        metrics_data.append({"Modelo": "GGS", "R²": R2, "MAPE (%)": MAPE,
+                             "AIC": AIC, "BIC": BIC, "F.O.": FO_ggs})
+
+    if y_rrsb is not None:
+        R2, MAPE, AIC, BIC = model_metrics(y_exp, y_rrsb, k=2)
+        metrics_data.append({"Modelo": "RRSB", "R²": R2, "MAPE (%)": MAPE,
+                             "AIC": AIC, "BIC": BIC, "F.O.": FO_rrsb})
+
+    if y_dw is not None:
+        R2, MAPE, AIC, BIC = model_metrics(y_exp, y_dw, k=4)
+        metrics_data.append({"Modelo": "Doble Weibull", "R²": R2, "MAPE (%)": MAPE,
+                             "AIC": AIC, "BIC": BIC, "F.O.": FO_dw})
+
+    df_metrics = pd.DataFrame(metrics_data)
+    st.dataframe(df_metrics.style.format({
+        "R²": "{:.4f}", "MAPE (%)": "{:.2f}", "AIC": "{:.2f}", "BIC": "{:.2f}", "F.O.": "{:.2e}"
+    }))
+
     # ------------------- Gráficos -------------------
     xdata = d; ydata = y_exp
     dd = np.linspace(np.min(xdata), np.max(xdata), 500)
@@ -1347,6 +1390,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
