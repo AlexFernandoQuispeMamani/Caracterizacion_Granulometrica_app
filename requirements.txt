@@ -6,3 +6,4 @@ scipy
 qrcode
 Pillow
 openpyxl
+fpdf
