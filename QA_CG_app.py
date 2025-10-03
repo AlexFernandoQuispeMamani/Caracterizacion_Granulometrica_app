@@ -273,7 +273,10 @@ def page_2():
         st.info("Selecciona las mallas de la serie Tyler. Luego pulsa **Generar tabla de mallas**.")
         # build labels for multiselect
         malla_items = sorted(TYLER.items(), key=lambda x: -x[1])
-        labels = [f"{int(k) if float(k).is_integer() else k}# - {v} µm" for k, v in malla_items]
+        labels = [
+            f'{k}" - {v} µm' if k <= 3.5 else f"{int(k) if float(k).is_integer() else k}# - {v} µm"
+            for k, v in malla_items
+        ]
         selected_labels = st.multiselect("Selecciona mallas (múltiple, ordenadas descendente si quieres):", labels, default=st.session_state.get('generated_mallas_labels', []))
 
         if st.button("Generar tabla de mallas"):
@@ -294,7 +297,11 @@ def page_2():
             st.session_state['generated_mallas_labels'] = selected_labels
 
             for k in selected_keys:
-                rows.append({'Nº Malla (Tyler)': str(k)+'#', 'Abertura (µm)': TYLER.get(k, np.nan), 'Peso (g)': np.nan})
+                rows.append({
+                    'Nº Malla (Tyler)': f'{k}"' if k <= 3.5 else f"{int(k) if float(k).is_integer() else k}#",
+                    'Abertura (µm)': TYLER.get(k, np.nan),
+                    'Peso (g)': np.nan
+                })
             if len(rows) == 0:
                 st.warning("Selecciona al menos una malla.")
             else:
@@ -1534,6 +1541,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
