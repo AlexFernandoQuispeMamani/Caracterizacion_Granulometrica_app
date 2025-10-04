@@ -421,6 +421,7 @@ def page_3():
     # Selección de gráfico y escala
     st.markdown("**Seleccione gráfico**")
     grafico = st.selectbox("SELECCIONE GRÁFICO", [
+        "Boxplot",
         "Histograma de frecuencia",
         "Diagrama de simple distribución",
         "Diagrama Acumulativo de Subtamaño",
@@ -447,6 +448,21 @@ def page_3():
 
     lw = 0.9
     ms = 4
+
+    if grafico == "Boxplot":
+        # --- Boxplot del Tamaño inferior (µm) ---
+        ax.boxplot(
+            plot_df['Tamaño inferior (µm)'].dropna(),
+            vert=False,
+            patch_artist=True,
+            boxprops=dict(facecolor='lightgray', color='black'),
+            medianprops=dict(color='red', linewidth=1.5),
+            whiskerprops=dict(color='black'),
+            capprops=dict(color='black'),
+            flierprops=dict(marker='o', markerfacecolor='white', markersize=5, markeredgecolor='black')
+        )
+        ax.set_xlabel("Tamaño inferior (µm)")
+        ax.set_title("Boxplot")
 
     # --- Graficar según selección ---
     if grafico == "Histograma de frecuencia":
@@ -1592,6 +1608,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
