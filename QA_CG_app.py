@@ -284,60 +284,71 @@ def page_1():
 
 # ---------- PÁGINA 2: Datos experimentales ----------
 def page_2():
-    st.title("DATOS EXPERIMENTALES")
-    st.markdown("Inserte tamaños y pesos retenidos sobre cada tamiz para efectuar el análisis granulométrico.")
-    st.markdown("Si tiene números de malla use **SELECCIONAR MALLAS**, de lo contrario use **INSERTAR MANUALMENTE**.")
+    # Título centrado
+    st.markdown("<h1 style='text-align: center;'>DATOS EXPERIMENTALES</h1>", unsafe_allow_html=True)
 
-    # Peso total widget (synchronization)
+    # Descripción principal
+    st.markdown("<p style='text-align: center;'>Inserte el peso total de la muestra, seleccione las mallas o tamaños y los pesos de cada fracción.</p>", unsafe_allow_html=True)
+
+    # Peso total
     st.number_input(
-        "Peso total (g):", min_value=0.0,
+        "Peso total (g):",
+        min_value=0.0,
         value=float(st.session_state.get('peso_total_input', 1000.0)),
-        step=0.1, key='peso_total_input', on_change=peso_input_on_change
+        step=0.1,
+        key='peso_total_input',
+        on_change=peso_input_on_change
     )
     st.session_state.peso_total = float(
         st.session_state.get('peso_total', st.session_state.get('peso_total_input', 1000.0))
     )
 
-    st.markdown("**Modo de inserción de datos**")
-    mode = st.radio(
-        "Selecciona modo:", ["SELECCIONAR MALLAS", "INSERTAR MANUALMENTE"],
-        index=0, key='mode_radio'
+    # Descripción del modo
+    st.markdown("**Use SELECCIONAR MALLAS si cuenta con el número de malla de sus tamices. Use INSERTAR MANUALMENTE si desea insertar los tamaños de manera personalizada.**")
+
+    # Selector de modo (lista desplegable en lugar de radio)
+    mode = st.selectbox(
+        "",
+        ["SELECCIONAR MALLAS", "INSERTAR MANUALMENTE"],
+        index=0,
+        key='mode_select'
     )
     st.session_state.selected_mode = mode
 
+    # ----- SELECCIONAR MALLAS -----
     if mode == "SELECCIONAR MALLAS":
-        st.info("Selecciona las mallas de la serie Tyler. Luego pulsa **Generar tabla de mallas**.")
-        # build labels for multiselect
+        st.info("Seleccione las mallas de la serie Tyler y luego pulse **Generar tabla de datos**.")
+
+        # Construcción de etiquetas de mallas
         malla_items = sorted(TYLER.items(), key=lambda x: -x[1])
         labels = [
             f'{k}"' if 0.371 <= k <= 1.05 else f"{int(k) if float(k).is_integer() else k}#"
             for k, _ in malla_items
         ]
+
         selected_labels = st.multiselect(
-            "Selecciona mallas (múltiple, ordenadas descendente si quieres):",
+            "Selecciona mallas (orden descendente recomendado):",
             labels,
             default=[lab for lab in st.session_state.get('generated_mallas_labels', []) if lab in labels]
         )
 
-        if st.button("Generar tabla de mallas"):
-            # convert labels to keys
+        if st.button("Generar tabla de datos"):
             selected_keys = []
             rows = []
             for lab in selected_labels:
-                lab_clean = lab.replace('"','').replace('#','')
+                lab_clean = lab.replace('"', '').replace('#', '')
                 try:
                     k_num = float(lab_clean)
                 except:
                     k_num = lab_clean
                 selected_keys.append(k_num)
 
-                # Determinar etiqueta correcta
+                # Etiqueta de malla
                 if 0.371 <= k_num <= 1.05:
                     label = f'{k_num}"'
                 else:
                     label = f"{int(k_num) if k_num.is_integer() else k_num}#"
 
-                # Obtener apertura desde TYLER
                 apertura = TYLER.get(k_num, np.nan)
 
                 rows.append({
@@ -347,34 +358,48 @@ def page_2():
                 })
 
             if len(rows) == 0:
-                st.warning("Selecciona al menos una malla.")
+                st.warning("Seleccione al menos una malla.")
             else:
                 st.session_state['generated_mallas'] = selected_keys
                 st.session_state['generated_mallas_labels'] = selected_labels
                 st.session_state.input_table = pd.DataFrame(rows)
-                st.success("Tabla generada. Completa la columna 'Peso (g)' con tus datos y pulsa EJECUTAR.")
+                st.success("Tabla generada correctamente. Complete los pesos y pulse EJECUTAR.")
                 st.rerun()
 
-    else:  # INSERTAR MANUALMENTE
-        st.info("Insertar manualmente los tamaños (µm) y pesos (g).")
+    # ----- INSERTAR MANUALMENTE -----
+    else:
+        st.info("Inserte manualmente los tamaños (µm) y pesos (g).")
         n = st.number_input(
-            "Número de filas a insertar (3-25):", min_value=3, max_value=25,
+            "Número de filas a insertar (3-25):",
+            min_value=3, max_value=25,
             value=6, step=1, key='n_rows_input'
         )
-        if st.button("Generar tabla manual"):
-            df = pd.DataFrame({'Tamaño (µm)': [np.nan]*int(n), 'Peso (g)': [np.nan]*int(n)})
+
+        if st.button("Generar tabla de datos"):
+            df = pd.DataFrame({
+                'Tamaño (µm)': [np.nan]*int(n),
+                'Peso (g)': [np.nan]*int(n)
+            })
             st.session_state.input_table = df
-            st.success("Tabla generada. Completa los tamaños y pesos y pulsa EJECUTAR.")
+            st.success("Tabla generada correctamente. Complete los valores y pulse EJECUTAR.")
             st.rerun()
 
-    st.markdown("**Tabla de entrada** (edítala y luego pulsa EJECUTAR):")
+    # ----- TABLA DE ENTRADA -----
+    st.markdown("<h4 style='text-align: center;'>Tabla Nº 1. Registro de datos</h4>", unsafe_allow_html=True)
+
     if not st.session_state.input_table.empty:
+        # Centrar la tabla en pantalla
+        st.markdown("<div style='display: flex; justify-content: center;'>", unsafe_allow_html=True)
         edited = st.data_editor(
-            st.session_state.input_table, num_rows="dynamic", key='input_table_editor'
+            st.session_state.input_table,
+            num_rows="dynamic",
+            key='input_table_editor'
         )
+        st.markdown("</div>", unsafe_allow_html=True)
         st.session_state.input_table = edited
 
-    col1, col2, col3 = st.columns([1,1,1])
+    # ----- BOTONES DE NAVEGACIÓN -----
+    col1, col2, col3 = st.columns([1, 1, 1])
     with col1:
         if st.button("ANTERIOR"):
             st.session_state.page = 1
@@ -382,7 +407,7 @@ def page_2():
     with col2:
         if st.button("EJECUTAR"):
             if st.session_state.input_table.empty:
-                st.error("Genera y completa la tabla antes de ejecutar.")
+                st.error("Genere y complete la tabla antes de ejecutar.")
             else:
                 try:
                     results = compute_analysis(
@@ -395,7 +420,7 @@ def page_2():
                 except Exception as e:
                     st.error(f"Error al calcular: {e}")
     with col3:
-        st.write("")  # spacing
+        st.write("")  # Espaciado
 
 # ---------- PÁGINA 3: Análisis granulométrico (Resultados) ----------
 def page_3():
@@ -1592,6 +1617,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
