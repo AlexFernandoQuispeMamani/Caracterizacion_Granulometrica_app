@@ -310,49 +310,70 @@ def page_2():
     mode = st.selectbox(
         "",
         ["SELECCIONAR MALLAS", "INSERTAR MANUALMENTE"],
-        index=0,
+        # Usamos el estado de sesión para mantener el modo seleccionado si la página se recarga
+        index=["SELECCIONAR MALLAS", "INSERTAR MANUALMENTE"].index(st.session_state.get('selected_mode', 'SELECCIONAR MALLAS')),
         key='mode_select'
     )
     st.session_state.selected_mode = mode
 
-    # ----- SELECCIONAR MALLAS -----
+    # ----- SELECCIONAR MALLAS (MODIFICACIÓN: Muestra Malla + Abertura) -----
     if mode == "SELECCIONAR MALLAS":
-        st.info("Seleccione las mallas de la serie Tyler y luego pulse **Generar tabla de datos**.")
+        st.info("Seleccione las mallas de la serie Tyler de la lista fija y luego pulse **Generar tabla de datos**.")
 
-        # Construcción de etiquetas de mallas
+        # Construcción de etiquetas de mallas con su abertura (µm o mm)
         malla_items = sorted(TYLER.items(), key=lambda x: -x[1])
-        labels = [
-            f'{k}"' if 0.371 <= k <= 1.05 else f"{int(k) if float(k).is_integer() else k}#"
-            for k, _ in malla_items
-        ]
+        labels = []
+        for k, apertura in malla_items:
+            # 1. Determinar la etiqueta de malla (Ej: 4# o 1.05")
+            if 0.371 <= k <= 1.05:
+                label_name = f'{k}"'
+            else:
+                # Asegura que se muestre como entero si es un número de malla entero
+                label_name = f"{int(k) if float(k).is_integer() else k}#"
 
-        selected_labels = st.multiselect(
-            "Selecciona mallas (orden descendente recomendado):",
+            # 2. Determinar el formato de la abertura
+            if apertura >= 1000:
+                apertura_str = f"{apertura/1000:.3f} mm"
+            else:
+                apertura_str = f"{apertura} µm"
+
+            # 3. Etiqueta final: "Nº Malla (Abertura)"
+            labels.append(f'{label_name} ({apertura_str})')
+
+        # Para mantener la selección persistente en el multiselect
+        # Usamos 'generated_mallas_labels_display' para almacenar las etiquetas completas seleccionadas
+        default_selected_labels = st.session_state.get('generated_mallas_labels_display', [])
+        default_selected = [lab for lab in labels if lab in default_selected_labels]
+        
+        selected_labels_display = st.multiselect(
+            "Selecciona mallas (Malla y Abertura - orden descendente recomendado):",
             labels,
-            default=[lab for lab in st.session_state.get('generated_mallas_labels', []) if lab in labels]
+            default=default_selected,
         )
 
         if st.button("Generar tabla de datos"):
-            selected_keys = []
             rows = []
-            for lab in selected_labels:
-                lab_clean = lab.replace('"', '').replace('#', '')
+            selected_labels_display_raw = [] # Guarda la etiqueta completa mostrada
+            selected_keys = [] # Guarda las claves (número de malla)
+
+            for lab_display in selected_labels_display:
+                selected_labels_display_raw.append(lab_display)
+                
+                # Extraer la parte del Nº Malla (Ej: "4#")
+                label_name_full = lab_display.split(' (')[0]
+                k_str = label_name_full.replace('"', '').replace('#', '')
+                
                 try:
-                    k_num = float(lab_clean)
-                except:
-                    k_num = lab_clean
+                    # Intenta convertir la clave a float para buscar en TYLER
+                    k_num = float(k_str)
+                except ValueError:
+                    k_num = k_str # En caso de error, mantiene el string
+
                 selected_keys.append(k_num)
-
-                # Etiqueta de malla
-                if 0.371 <= k_num <= 1.05:
-                    label = f'{k_num}"'
-                else:
-                    label = f"{int(k_num) if k_num.is_integer() else k_num}#"
-
                 apertura = TYLER.get(k_num, np.nan)
 
                 rows.append({
-                    'Nº Malla (Tyler)': label,
+                    'Nº Malla (Tyler)': label_name_full, # Ej: 4# o 1.05"
                     'Abertura (µm)': apertura,
                     'Peso (g)': np.nan
                 })
@@ -360,11 +381,12 @@ def page_2():
             if len(rows) == 0:
                 st.warning("Seleccione al menos una malla.")
             else:
+                # Guardar el estado de la selección completa
+                st.session_state['generated_mallas_labels_display'] = selected_labels_display_raw
                 st.session_state['generated_mallas'] = selected_keys
-                st.session_state['generated_mallas_labels'] = selected_labels
                 st.session_state.input_table = pd.DataFrame(rows)
                 st.success("Tabla generada correctamente. Complete los pesos y pulse EJECUTAR.")
-                st.rerun()
+                st.rerun() # Rerender para mostrar la tabla inmediatamente
 
     # ----- INSERTAR MANUALMENTE -----
     else:
@@ -372,7 +394,7 @@ def page_2():
         n = st.number_input(
             "Número de filas a insertar (3-25):",
             min_value=3, max_value=25,
-            value=6, step=1, key='n_rows_input'
+            value=st.session_state.get('n_rows_input', 6), step=1, key='n_rows_input'
         )
 
         if st.button("Generar tabla de datos"):
@@ -387,11 +409,37 @@ def page_2():
     # ----- TABLA DE ENTRADA -----
     st.markdown("<h4 style='text-align: center;'>Tabla Nº 1. Registro de datos</h4>", unsafe_allow_html=True)
 
+    if 'input_table' not in st.session_state:
+        st.session_state.input_table = pd.DataFrame()
+
     if not st.session_state.input_table.empty:
         # Centrar la tabla en pantalla
         st.markdown("<div style='display: flex; justify-content: center;'>", unsafe_allow_html=True)
+        
+        # Configurar la vista de la tabla de entrada según el modo
+        if st.session_state.selected_mode == "INSERTAR MANUALMENTE":
+             cols_to_show = ['Tamaño (µm)', 'Peso (g)']
+        else:
+             cols_to_show = ['Nº Malla (Tyler)', 'Abertura (µm)', 'Peso (g)']
+        
+        df_display = st.session_state.input_table.reindex(columns=cols_to_show)
+
         edited = st.data_editor(
-            st.session_state.input_table,
+            df_display,
+            column_config={
+                'Peso (g)': st.column_config.NumberColumn(
+                    'Peso (g)', format="%.2f", min_value=0.0
+                ),
+                'Abertura (µm)': st.column_config.NumberColumn(
+                    'Abertura (µm)', format="%.0f", disabled=True
+                ),
+                'Nº Malla (Tyler)': st.column_config.TextColumn(
+                    'Nº Malla (Tyler)', disabled=True
+                ),
+                'Tamaño (µm)': st.column_config.NumberColumn(
+                    'Tamaño (µm)', format="%.0f", min_value=0.1
+                ),
+            },
             num_rows="dynamic",
             key='input_table_editor'
         )
@@ -410,17 +458,28 @@ def page_2():
                 st.error("Genere y complete la tabla antes de ejecutar.")
             else:
                 try:
-                    results = compute_analysis(
-                        st.session_state.input_table, st.session_state.selected_mode
-                    )
-                    st.session_state.results_table = results
-                    st.success("Análisis calculado correctamente.")
-                    st.session_state.page = 3
-                    st.rerun()
+                    df_to_compute = st.session_state.input_table.dropna(subset=['Peso (g)'])
+                    if df_to_compute.empty:
+                         st.error("La columna 'Peso (g)' no debe estar vacía.")
+                    else:
+                        with st.spinner('Realizando cálculos...'):
+                            results = compute_analysis(df_to_compute, st.session_state.selected_mode)
+                        
+                        st.session_state.results_table = results
+                        st.session_state.page = 3
+                        st.success("Análisis calculado correctamente.")
+                        st.rerun()
                 except Exception as e:
                     st.error(f"Error al calcular: {e}")
+                    st.error("Asegúrese de que todos los valores numéricos estén ingresados correctamente.")
     with col3:
-        st.write("")  # Espaciado
+        if 'results_table' in st.session_state and not st.session_state.results_table.empty:
+            if st.button("SIGUIENTE"):
+                 st.session_state.page = 3
+                 st.rerun()
+        else:
+            st.write("") # Espaciado
+
 
 # ---------- PÁGINA 3: Análisis granulométrico (Resultados) ----------
 def page_3():
@@ -1617,6 +1676,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
