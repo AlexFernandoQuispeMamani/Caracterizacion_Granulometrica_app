@@ -175,7 +175,7 @@ def compute_analysis(df_in, mode):
     for c in numeric_cols:
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors='coerce')
-    # return raw numeric DataFrame (rounding applied on display)
+    return raw numeric DataFrame (rounding applied on display)
 
     # --- CORRECCIÓN 1: evitar -0 en %F(d) ---
     if '%F(d)' in df.columns:
@@ -280,7 +280,7 @@ def page_1():
                     'fecha': fecha_muestreo.isoformat()
                 }
                 st.session_state.page = 2
-                #st.rerun()
+                st.rerun()
 
 # ---------- PÁGINA 2: Datos experimentales ----------
 def page_2():
@@ -403,7 +403,7 @@ def page_2():
                 
                 st.session_state.input_table = pd.DataFrame(rows)
                 st.success("Tabla generada correctamente. Complete los pesos y pulse EJECUTAR.")
-                #st.rerun() # Rerender para mostrar la tabla de pesos inmediatamente
+                st.rerun() # Rerender para mostrar la tabla de pesos inmediatamente
 
     # ----- INSERTAR MANUALMENTE -----
     else:
@@ -421,7 +421,7 @@ def page_2():
             })
             st.session_state.input_table = df
             st.success("Tabla generada correctamente. Complete los valores y pulse EJECUTAR.")
-            #st.rerun()
+            st.rerun()
 
     # ----- TABLA DE ENTRADA -----
     st.markdown("<h4 style='text-align: center;'>Tabla Nº 1. Registro de datos</h4>", unsafe_allow_html=True)
@@ -468,7 +468,7 @@ def page_2():
     with col1:
         if st.button("ANTERIOR"):
             st.session_state.page = 1
-            #st.rerun()
+            st.rerun()
     with col2:
         if st.button("EJECUTAR"):
             if st.session_state.input_table.empty:
@@ -499,7 +499,7 @@ def page_2():
         if 'results_table' in st.session_state and not st.session_state.results_table.empty:
             if st.button("SIGUIENTE"):
                  st.session_state.page = 3
-                 #st.rerun()
+                 st.rerun()
         else:
             st.write("") # Espaciado
 
@@ -1699,6 +1699,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
