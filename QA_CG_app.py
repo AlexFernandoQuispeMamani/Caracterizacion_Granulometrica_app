@@ -307,11 +307,17 @@ def page_2():
     st.markdown("**Use SELECCIONAR MALLAS si cuenta con el número de malla de sus tamices. Use INSERTAR MANUALMENTE si desea insertar los tamaños de manera personalizada.**")
 
     # Selector de modo (lista desplegable en lugar de radio)
+    options = ["SELECCIONAR MALLAS", "INSERTAR MANUALMENTE"]
+    current_mode_state = st.session_state.get('selected_mode')
+
+    # Calcula el índice de inicio de forma segura. Si el valor en el estado no es válido, usa 0 (SELECCIONAR MALLAS).
+    initial_index = options.index(current_mode_state) if current_mode_state in options else 0
+    
     mode = st.selectbox(
         "",
-        ["SELECCIONAR MALLAS", "INSERTAR MANUALMENTE"],
-        # Usamos el estado de sesión para mantener el modo seleccionado si la página se recarga
-        index=["SELECCIONAR MALLAS", "INSERTAR MANUALMENTE"].index(st.session_state.get('selected_mode', 'SELECCIONAR MALLAS')),
+        options,
+        # Usamos el índice seguro para mantener el modo seleccionado si la página se recarga o si el estado estaba corrupto.
+        index=initial_index,
         key='mode_select'
     )
     st.session_state.selected_mode = mode
@@ -479,6 +485,7 @@ def page_2():
                  st.rerun()
         else:
             st.write("") # Espaciado
+
 
 
 # ---------- PÁGINA 3: Análisis granulométrico (Resultados) ----------
@@ -1676,6 +1683,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
