@@ -322,77 +322,88 @@ def page_2():
     )
     st.session_state.selected_mode = mode
 
-    # ----- SELECCIONAR MALLAS (MODIFICACIÓN: Muestra Malla + Abertura) -----
+    # ----- SELECCIONAR MALLAS (MODIFICACIÓN: Data Editor con Checkboxes) -----
     if mode == "SELECCIONAR MALLAS":
-        st.info("Seleccione las mallas de la serie Tyler de la lista fija y luego pulse **Generar tabla de datos**.")
+        st.info("Seleccione las mallas utilizadas marcando las casillas, luego pulse **Generar tabla de datos**.")
 
-        # Construcción de etiquetas de mallas con su abertura (µm o mm)
-        malla_items = sorted(TYLER.items(), key=lambda x: -x[1])
-        labels = []
-        for k, apertura in malla_items:
-            # 1. Determinar la etiqueta de malla (Ej: 4# o 1.05")
-            if 0.371 <= k <= 1.05:
-                label_name = f'{k}"'
-            else:
-                # Asegura que se muestre como entero si es un número de malla entero
-                label_name = f"{int(k) if float(k).is_integer() else k}#"
-
-            # 2. Determinar el formato de la abertura
-            if apertura >= 1000:
-                apertura_str = f"{apertura/1000:.3f} mm"
-            else:
-                apertura_str = f"{apertura} µm"
-
-            # 3. Etiqueta final: "Nº Malla (Abertura)"
-            labels.append(f'{label_name} ({apertura_str})')
-
-        # Para mantener la selección persistente en el multiselect
-        # Usamos 'generated_mallas_labels_display' para almacenar las etiquetas completas seleccionadas
-        default_selected_labels = st.session_state.get('generated_mallas_labels_display', [])
-        default_selected = [lab for lab in labels if lab in default_selected_labels]
-        
-        selected_labels_display = st.multiselect(
-            "Selecciona mallas (Malla y Abertura - orden descendente recomendado):",
-            labels,
-            default=default_selected,
-        )
-
-        if st.button("Generar tabla de datos"):
+        # --- Creación de la tabla base de Mallas Tyler ---
+        # Si no existe, la creamos; si existe, la cargamos para mantener el estado de los checkboxes
+        if 'malla_selection_df' not in st.session_state or st.session_state['malla_selection_df'].empty:
+            malla_items = sorted(TYLER.items(), key=lambda x: -x[1])
             rows = []
-            selected_labels_display_raw = [] # Guarda la etiqueta completa mostrada
-            selected_keys = [] # Guarda las claves (número de malla)
-
-            for lab_display in selected_labels_display:
-                selected_labels_display_raw.append(lab_display)
+            for k, apertura_um in malla_items:
+                # 1. Determinar la etiqueta de malla (Ej: 4# o 1.05")
+                if 0.371 <= k <= 1.05:
+                    label_name = f'{k}"'
+                else:
+                    label_name = f"{int(k) if float(k).is_integer() else k}#"
                 
-                # Extraer la parte del Nº Malla (Ej: "4#")
-                label_name_full = lab_display.split(' (')[0]
-                k_str = label_name_full.replace('"', '').replace('#', '')
-                
-                try:
-                    # Intenta convertir la clave a float para buscar en TYLER
-                    k_num = float(k_str)
-                except ValueError:
-                    k_num = k_str # En caso de error, mantiene el string
-
-                selected_keys.append(k_num)
-                apertura = TYLER.get(k_num, np.nan)
+                # 2. Determinar el formato de la abertura
+                apertura_str = f"{apertura_um/1000:.3f}" if apertura_um >= 1000 else f"{apertura_um}"
+                unidad = "mm" if apertura_um >= 1000 else "µm"
 
                 rows.append({
-                    'Nº Malla (Tyler)': label_name_full, # Ej: 4# o 1.05"
-                    'Abertura (µm)': apertura,
-                    'Peso (g)': np.nan
+                    'SELECCIÓN': False, # Columna de Checkbox
+                    'Nº Malla': label_name,
+                    'Abertura': apertura_str,
+                    'Unidad': unidad,
+                    'k_num': k # Clave numérica oculta para el cálculo
                 })
+            
+            st.session_state['malla_selection_df'] = pd.DataFrame(rows)
 
-            if len(rows) == 0:
+        # --- Mostrar y editar la tabla de selección ---
+        df_mallas_selection = st.session_state['malla_selection_df'].copy()
+
+        # Mostrar solo las columnas relevantes para la selección
+        df_display_mallas = df_mallas_selection[['SELECCIÓN', 'Nº Malla', 'Abertura', 'Unidad']]
+        
+        st.markdown("<div style='display: flex; justify-content: center;'>", unsafe_allow_html=True)
+        edited_mallas = st.data_editor(
+            df_display_mallas,
+            column_config={
+                'SELECCIÓN': st.column_config.CheckboxColumn(
+                    ' ', default=False, help="Marque las mallas utilizadas en el análisis"
+                ),
+                'Nº Malla': st.column_config.TextColumn("TAMIZ", disabled=True),
+                'Abertura': st.column_config.TextColumn("ABERTURA"),
+                'Unidad': st.column_config.TextColumn("", disabled=True),
+            },
+            hide_index=True,
+            use_container_width=True,
+            key='malla_selector_editor'
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Sincronizar el DataFrame editado con el estado de sesión
+        st.session_state['malla_selection_df']['SELECCIÓN'] = edited_mallas['SELECCIÓN']
+
+        if st.button("Generar tabla de datos"):
+            # Filtrar las mallas seleccionadas
+            selected_df = st.session_state['malla_selection_df'][
+                st.session_state['malla_selection_df']['SELECCIÓN'] == True
+            ]
+
+            if selected_df.empty:
                 st.warning("Seleccione al menos una malla.")
             else:
-                # Guardar el estado de la selección completa
-                st.session_state['generated_mallas_labels_display'] = selected_labels_display_raw
-                st.session_state['generated_mallas'] = selected_keys
+                # Crear la tabla de entrada final (para Tabla Nº 1)
+                rows = []
+                # Recorrer las mallas seleccionadas (están ordenadas por TYLER)
+                for _, row in selected_df.iterrows():
+                    # Aquí usamos la clave numérica real y la etiqueta
+                    k_num = row['k_num']
+                    apertura_um = TYLER.get(k_num, np.nan) # Obtener la abertura en µm
+                    
+                    rows.append({
+                        'Nº Malla (Tyler)': row['Nº Malla'], # Ej: 4#
+                        'Abertura (µm)': apertura_um,
+                        'Peso (g)': np.nan
+                    })
+                
                 st.session_state.input_table = pd.DataFrame(rows)
                 st.success("Tabla generada correctamente. Complete los pesos y pulse EJECUTAR.")
-                st.rerun() # Rerender para mostrar la tabla inmediatamente
+                st.rerun() # Rerender para mostrar la tabla de pesos inmediatamente
 
     # ----- INSERTAR MANUALMENTE -----
     else:
@@ -464,9 +475,15 @@ def page_2():
                 st.error("Genere y complete la tabla antes de ejecutar.")
             else:
                 try:
+                    # Se asegura de que no haya filas sin peso (que no fueron seleccionadas o llenadas)
                     df_to_compute = st.session_state.input_table.dropna(subset=['Peso (g)'])
+                    
+                    # Filtra filas que tienen 0 en Tamaño/Abertura si es inserción manual (opcional, pero buena práctica)
+                    if st.session_state.selected_mode == "INSERTAR MANUALMENTE":
+                        df_to_compute = df_to_compute[df_to_compute['Tamaño (µm)'] > 0]
+                    
                     if df_to_compute.empty:
-                         st.error("La columna 'Peso (g)' no debe estar vacía.")
+                         st.error("La columna 'Peso (g)' no debe estar vacía o no se detectaron valores válidos.")
                     else:
                         with st.spinner('Realizando cálculos...'):
                             results = compute_analysis(df_to_compute, st.session_state.selected_mode)
@@ -485,7 +502,6 @@ def page_2():
                  st.rerun()
         else:
             st.write("") # Espaciado
-
 
 
 # ---------- PÁGINA 3: Análisis granulométrico (Resultados) ----------
