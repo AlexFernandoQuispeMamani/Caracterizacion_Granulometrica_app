@@ -175,7 +175,7 @@ def compute_analysis(df_in, mode):
     for c in numeric_cols:
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors='coerce')
-    return raw numeric DataFrame (rounding applied on display)
+    #return raw numeric DataFrame (rounding applied on display)
 
     # --- CORRECCIÓN 1: evitar -0 en %F(d) ---
     if '%F(d)' in df.columns:
@@ -1699,6 +1699,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
